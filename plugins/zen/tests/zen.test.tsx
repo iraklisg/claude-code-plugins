@@ -1,8 +1,12 @@
 import { expect, mock, test } from 'claude-code/testing'
 
-import { bandLine, factsLine } from '../hooks/register'
+import { agentsLine, bandLine, factsLine } from '../hooks/register'
 
 const TURN = 'turn-1'
+const TWO = [
+  { id: 'a1', type: 'Explore' },
+  { id: 'a2', type: 'repo-research-analyst' },
+]
 
 const editResult = {
   filePath: 'src/a.ts',
@@ -26,10 +30,14 @@ test('facts line sums files, commands and the last test run', () => {
 })
 
 test('band shows progress over activity', () => {
-  expect(bandLine({ activity: 'Reading', tools: 7, agents: 0, todo: null })).toBe('◇ Reading · 7 tools')
+  expect(bandLine({ activity: 'Reading', tools: 7, todo: null }, [])).toBe('◇ Reading · 7 tools')
   expect(
-    bandLine({ activity: 'Editing', tools: 3, agents: 2, todo: { done: 2, total: 3, current: 'Updating routes' } }),
+    bandLine({ activity: 'Editing', tools: 3, todo: { done: 2, total: 3, current: 'Updating routes' } }, TWO),
   ).toBe('▰▰▱ 2/3 · Updating routes · 2 agents')
+  expect(agentsLine(TWO)).toBe('◇ 2 agents running · Explore, repo-research-analyst')
+  expect(agentsLine([...TWO, { id: 'a3', type: 'Explore' }])).toBe(
+    '◇ 3 agents running · Explore ×2, repo-research-analyst',
+  )
 })
 
 test('turn end shows the facts line after an edit and a failed test run', async ($, on) => {

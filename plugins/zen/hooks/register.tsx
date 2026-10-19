@@ -1,14 +1,15 @@
 import { atom, read, update } from 'claude-code'
 import type { BuiltinToolResults, Register } from 'claude-code'
 
-import type { Band, Todo } from '../types'
+import type { Agent, Band, Todo } from '../types'
 
 const isOn = atom({ plugin: 'zen', key: 'isOn' } as const, true)
 const isBrief = atom({ plugin: 'zen', key: 'isBrief' } as const, true)
-const IDLE: Band = { activity: 'Working', tools: 0, agents: 0, todo: null }
+const IDLE: Band = { activity: 'Working', tools: 0, todo: null }
 const band = atom({ plugin: 'zen', key: 'band' } as const, IDLE)
 const facts = atom({ plugin: 'zen', key: 'facts' } as const, [])
 // Text Claude wrote before a tool call this session; the final answer never lands here.
+const agents = atom({ plugin: 'zen', key: 'agents' } as const, [])
 const chatter = atom({ plugin: 'zen', key: 'chatter' } as const, [])
 
 // Rows hidden unless they errored. Bash joins them when it succeeds.
@@ -25,6 +26,7 @@ const QUIET = new Set([
   'TaskList',
   'TaskGet',
   'Agent',
+  'Skill',
 ])
 
 const VERBS: Record<string, string> = {
@@ -67,8 +69,11 @@ const freshTurn = (): Turn => ({
   tasks: new Map(),
 })
 
-const isQuiet = (tool: string, isErrored: boolean, isInterrupted: boolean) =>
-  !isErrored && !isInterrupted && (QUIET.has(tool) || tool === 'Bash')
+// AskUserQuestion's row is hidden once answered; its dialog is a site of its own.
+const isQuiet = (tool: string, isErrored: boolean, isInterrupted: boolean, isRunning: boolean) =>
+  !isErrored &&
+  !isInterrupted &&
+  (QUIET.has(tool) || tool === 'Bash' || (tool === 'AskUserQuestion' && !isRunning))
 
 const countPatch = (patch: Patch) => {
   let added = 0
@@ -118,8 +123,16 @@ export const factsLine = (turn: Turn) => {
   return parts.length === 0 ? '' : `◇ ${parts.join(' · ')}`
 }
 
-export const bandLine = (state: Band) => {
-  const agents = state.agents > 0 ? ` · ${plural(state.agents, 'agent')}` : ''
+export const agentsLine = (running: readonly Agent[]) => {
+  const counts = new Map<string, number>()
+  for (const one of running) counts.set(one.type, (counts.get(one.type) ?? 0) + 1)
+  const types = [...counts].map(([type, n]) => (n > 1 ? `${type} ×${n}` : type))
+
+  return `◇ ${plural(running.length, 'agent')} running · ${types.join(', ')}`
+}
+
+export const bandLine = (state: Band, running: readonly Agent[]) => {
+  const agents = running.length > 0 ? ` · ${plural(running.length, 'agent')}` : ''
   if (state.todo !== null) {
     const { done, total, current } = state.todo
     const bar = '▰'.repeat(done) + '▱'.repeat(Math.max(0, total - done))
@@ -175,9 +188,26 @@ export const register: Register = on => {
     if (e.agentId === undefined) {
       turn = freshTurn()
       await update($, band, () => IDLE)
+      // turn.complete drops an agent as it ends; this catches one killed instead.
+      const ended = new Set(
+        (await $.agent.list())
+          .filter(one => ['completed', 'failed', 'killed'].includes(one.status))
+          .map(one => one.id),
+      )
+      await update($, agents, list => list.filter(one => !ended.has(one.id)))
     }
 
     return next(e)
+  }).catch(($, e, next) => next(e))
+
+  on('agent.spawn', async ($, e, next) => {
+    const spawned = await next(e)
+    const id = spawned.agentId
+    if (id !== undefined) {
+      await update($, agents, list => [...list, { id, type: e.subagentType }])
+    }
+
+    return spawned
   }).catch(($, e, next) => next(e))
 
   on('tool.call', async ($, e, next) => {
@@ -187,7 +217,6 @@ export const register: Register = on => {
       ...state,
       activity: VERBS[e.tool] ?? 'Working',
       tools: state.tools + 1,
-      agents: state.agents + (e.tool === 'Agent' ? 1 : 0),
     }))
     const ran = await next(e)
     if (ran.deny !== undefined) return ran
@@ -246,7 +275,12 @@ export const register: Register = on => {
 
   on('turn.complete', async ($, e, next) => {
     const done = await next(e)
-    if (e.agentId !== undefined) return done
+    const agentId = e.agentId
+    if (agentId !== undefined) {
+      await update($, agents, list => list.filter(one => one.id !== agentId))
+
+      return done
+    }
 
     await update($, band, () => IDLE)
     const line = e.reason === 'answer' ? factsLine(turn) : ''
@@ -296,8 +330,10 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
-    const { tool, isErrored, isInterrupted } = e.props
-    if (!(await read($, isOn)) || !isQuiet(tool, isErrored, isInterrupted)) return next(e)
+    const { tool, isErrored, isInterrupted, isRunning } = e.props
+    if (!(await read($, isOn)) || !isQuiet(tool, isErrored, isInterrupted, isRunning)) {
+      return next(e)
+    }
     const { Box } = $.ui.resolve(e)
 
     return <Box display="none" />
@@ -305,7 +341,7 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'ToolResult' }, async ($, e, next) => {
     const { tool, isErrored } = e.props
-    if (!(await read($, isOn)) || !isQuiet(tool, isErrored, false)) return next(e)
+    if (!(await read($, isOn)) || !isQuiet(tool, isErrored, false, false)) return next(e)
     const { Box } = $.ui.resolve(e)
 
     return <Box display="none" />
@@ -327,10 +363,12 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    if (e.props.hasSurvey || !e.props.isWorking || !(await read($, isOn))) return next(e)
-    const state = await read($, band)
+    if (e.props.hasSurvey || !(await read($, isOn))) return next(e)
+    const running = await read($, agents)
+    if (!e.props.isWorking && running.length === 0) return next(e)
+    const line = e.props.isWorking ? bandLine(await read($, band), running) : agentsLine(running)
     const { Text } = $.ui.resolve(e)
 
-    return <Text dimColor wrap="truncate">{bandLine(state)}</Text>
+    return <Text dimColor wrap="truncate">{line}</Text>
   })
 }
