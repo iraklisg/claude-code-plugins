@@ -9,7 +9,7 @@ Settled in a grill-me session on 2026-10-19 (mod API: Claude Code 2.1.303).
 ## Visibility
 
 **Hidden**
-- Read / Grep / Glob / WebFetch / WebSearch / Skill rows
+- Read / Grep / Glob / WebFetch / WebSearch / Skill / Agent / Workflow rows
 - Edit / Write / NotebookEdit rows and their diffs (the edit permission dialog still shows its diff: engine-drawn)
 - AskUserQuestion's answered row (the dialog itself stays)
 - Successful Bash
@@ -29,7 +29,7 @@ One line. Progress has priority:
 - Otherwise activity: `◇ Editing · 6 tools`
 - Subagents appended: `· 2 agents`
 - Between turns, while background agents still run: `◇ 2 agents running · Explore auth code paths, Repo conventions research` (the Agent calls' descriptions, cut to width; tracked from `agent.spawn` and each agent's `turn.complete`; gone at zero).
-- The engine's `N background agents launched` row can't be hidden: no render site draws it (checked by logging every site during a launch). Each agent's own `Agent` row is hidden.
+- The engine's `N background agents launched` row can't be hidden: no render site draws it (checked by logging every site during a launch). Each agent's own `Agent` row is hidden, and so is a `Workflow` row; workflow agents raise `agent.spawn` and `turn.complete` like any agent, so the band lists them by their labels. The `Agent/Dynamic workflow … finished` rows stay as the record.
 
 Never forces Claude to plan (no prompt injection for progress). Yields to surveys (`hasSurvey`).
 

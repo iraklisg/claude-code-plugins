@@ -26,6 +26,7 @@ const QUIET = new Set([
   'TaskList',
   'TaskGet',
   'Agent',
+  'Workflow',
   'Skill',
   'Edit',
   'Write',
