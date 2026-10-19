@@ -12,26 +12,9 @@ const agents = atom({ plugin: 'zen', key: 'agents' } as const, [])
 // Text Claude wrote before a tool call this session; the final answer never lands here.
 const chatter = atom({ plugin: 'zen', key: 'chatter' } as const, [])
 
-// Rows hidden unless they errored. Bash joins them when it succeeds.
-const QUIET = new Set([
-  'Read',
-  'Grep',
-  'Glob',
-  'LS',
-  'WebFetch',
-  'WebSearch',
-  'TodoWrite',
-  'TaskCreate',
-  'TaskUpdate',
-  'TaskList',
-  'TaskGet',
-  'Agent',
-  'Workflow',
-  'Skill',
-  'Edit',
-  'Write',
-  'NotebookEdit',
-])
+// Rows that always show; every other tool's row is hidden unless it errored.
+// ExitPlanMode carries the plan to approve; AskUserQuestion shows only while waiting.
+const SHOWN = new Set(['ExitPlanMode', 'EndConversation'])
 
 const VERBS: Record<string, string> = {
   Read: 'Reading',
@@ -69,14 +52,26 @@ const freshTurn = (): Turn => ({
 })
 
 // Their errors are self-corrections (a missing file, a bad pattern) Claude recovers from.
-const READ_ONLY = new Set(['Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch'])
+const READ_ONLY = new Set([
+  'Read',
+  'Grep',
+  'Glob',
+  'LS',
+  'WebFetch',
+  'WebSearch',
+  'ToolSearch',
+  'ListMcpResourcesTool',
+  'ReadMcpResourceTool',
+  'ReadMcpResourceDirTool',
+  'ListAgents',
+])
 
-// AskUserQuestion's row is hidden once answered; its dialog is a site of its own.
 const isQuiet = (tool: string, isErrored: boolean, isInterrupted: boolean, isRunning: boolean) =>
   READ_ONLY.has(tool) ||
   (!isErrored &&
     !isInterrupted &&
-    (QUIET.has(tool) || tool === 'Bash' || (tool === 'AskUserQuestion' && !isRunning)))
+    !SHOWN.has(tool) &&
+    !(tool === 'AskUserQuestion' && isRunning))
 
 // `/zen status` and usage replies stay; the footer label already shows a switch.
 const SWITCHES = new Set(['', 'on', 'off', 'brevity on', 'brevity off'])

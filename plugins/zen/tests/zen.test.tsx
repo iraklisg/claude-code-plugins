@@ -203,3 +203,48 @@ test('hides finished-task rows, read errors and /zen switch replies; keeps failu
   expect(await isHidden('CommandOutput', { command: 'zen', args: 'off', text: 'view off', isErrored: false })).toBe(true)
   expect(await isHidden('CommandOutput', { command: 'zen', args: 'status', text: 'view on', isErrored: false })).toBe(false)
 })
+
+test('hides a group of MCP and ToolSearch calls; keeps one with a failed MCP call', async ($, on) => {
+  mock.store(on)
+  on('ui.render', () => ({ type: 'Text', props: {}, children: ['engine row'] }) as never)
+  const call = (tool: string, isErrored = false) => ({ tool, isErrored, isInterrupted: false, isRunning: false })
+  const group = async (calls: object[]) =>
+    (await (
+      await $.ui.mount({
+        plugin: 'zen',
+        surface: 'terminal',
+        component: 'ToolGroup',
+        requestId: JSON.stringify(calls),
+        props: { calls, isExpanded: false },
+      } as never)
+    ).drawn()) as { props?: { display?: string } }
+
+  const quiet = await group([call('ToolSearch'), call('Read'), call('mcp__chrome-devtools__take_snapshot'), call('Bash')])
+  expect(quiet.props?.display).toBe('none')
+  const failed = await group([call('Read'), call('mcp__linear__save_issue', true)])
+  expect(failed.props?.display).not.toBe('none')
+})
+
+test('hides any tool by default; keeps its errors and the always-shown rows', async ($, on) => {
+  mock.store(on)
+  on('ui.render', () => ({ type: 'Text', props: {}, children: ['engine row'] }) as never)
+  const isHidden = async (tool: string, isErrored = false, isRunning = false) =>
+    (
+      (await (
+        await $.ui.mount({
+          plugin: 'zen',
+          surface: 'terminal',
+          component: 'ToolUse',
+          requestId: `${tool}-${isErrored}-${isRunning}`,
+          props: { tool_use_id: 'x', tool, input: {}, isRunning, isErrored, isInterrupted: false },
+        } as never)
+      ).drawn()) as { props?: { display?: string } }
+    ).props?.display === 'none'
+
+  expect(await isHidden('SomeFutureTool')).toBe(true)
+  expect(await isHidden('SomeFutureTool', true)).toBe(false)
+  expect(await isHidden('ReadMcpResourceTool', true)).toBe(true)
+  expect(await isHidden('ExitPlanMode')).toBe(false)
+  expect(await isHidden('AskUserQuestion', false, true)).toBe(false)
+  expect(await isHidden('AskUserQuestion')).toBe(true)
+})

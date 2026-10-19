@@ -35,8 +35,8 @@ With zen:
 
 | Hidden | Why |
 |---|---|
-| File reads, searches, web fetches | Inputs Claude gathers on its way to the answer, not results |
-| Shell commands that succeed | You only need to know when one fails |
+| File reads, searches, web fetches, tool searches | Inputs Claude gathers on its way to the answer, not results |
+| Shell commands, MCP calls and any other tool that succeeds | You only need to know when one fails |
 | Edits and their diffs | You review changes in your editor or git tool |
 | Claude's in-between narration ("Let me check…") | The final answer covers it |
 | Skill, agent and workflow launch rows | The live line above the prompt shows what's running |
@@ -47,8 +47,8 @@ With zen:
 ## What zen always shows
 
 - **Claude's final answer**, untouched
-- **Failures**: a shell command, edit or write that errored; a task that failed or was killed
-- **Anything that needs you**: permission prompts and Claude's questions
+- **Failures**: any tool that errored, except reads and searches; a task that failed or was killed
+- **Anything that needs you**: permission prompts, Claude's questions and plans to approve
 - **Progress while Claude works**, in one line above the prompt: `▰▰▱ 2/3 · Updating routes` · `◇ Reading · 4 tools` · `◇ 2 agents running · …`
 - **The test result** when tests ran: `◇ tests ✓` or `◇ tests ✗`. zen reads failure markers in the output, so a piped `pnpm test | tail` that failed still shows ✗
 - **The mode**: a dim `zen · brief` label in the prompt footer

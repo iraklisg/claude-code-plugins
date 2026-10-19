@@ -9,20 +9,18 @@ Settled in a grill-me session on 2026-10-19 (mod API: Claude Code 2.1.303).
 ## Visibility
 
 **Hidden**
-- Read / Grep / Glob / WebFetch / WebSearch / Skill / Agent / Workflow rows
-- Edit / Write / NotebookEdit rows and their diffs (the edit permission dialog still shows its diff: engine-drawn)
+- Every tool row by default, unless it errored or was interrupted: reads, searches, Bash, edits and their diffs (the edit permission dialog still shows its diff: engine-drawn), Skill / Agent / Workflow, MCP calls (`mcp__<server>__<tool>`), and any tool zen doesn't know. A default instead of a list: the list drifted (MCP and ToolSearch slipped through it).
 - AskUserQuestion's answered row (the dialog itself stays)
-- Errors of read-only tools (Read / Grep / Glob / WebFetch / WebSearch): self-corrections Claude recovers from
+- Errors of read-only tools (Read / Grep / Glob / WebFetch / WebSearch / ToolSearch / MCP resource reads / ListAgents): self-corrections Claude recovers from. An unknown tool's errors show.
 - Finished-task notifications (`Agent "…" finished`, `Dynamic workflow "…" completed`) and subagent messages (`Message from @…`): Claude relays them next. Failed or killed tasks stay. ctrl+o (`isExpanded`) shows them.
 - `/zen` switch replies (`view off`, `brevity on`): the footer label shows the state. `/zen status` replies stay.
-- Successful Bash
 - Tool groups (unless `isExpanded`)
 
 Rows are hidden by zen itself (option a), so ctrl+o cannot reveal them: the `ToolUse` site has no expanded flag and ctrl+o is an engine key. Escape hatch: `/zen off` redraws the whole transcript in the default view. (Option b, hiding only the engine's folded groups so ctrl+o works, was set aside: noisier.)
 
 **Always visible**
-- Errors and interruptions of tools that act (Bash, Edit, Write, ...)
-- Failed Bash (errored): the engine's own row and error output
+- Errors and interruptions of every tool outside the read-only list: the engine's own row and error output
+- ExitPlanMode (the plan to approve), EndConversation, AskUserQuestion while it waits
 - Permission prompts (engine-drawn; the mod can't hide them anyway), AskUserQuestion
 
 ## Live band (`AbovePrompt`, while working)
