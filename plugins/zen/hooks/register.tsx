@@ -1,9 +1,10 @@
 import { atom, read, update } from 'claude-code'
-import type { BuiltinToolResults, EngineInterface, Register } from 'claude-code'
+import type { BuiltinToolResults, Register } from 'claude-code'
 
 import type { Band, Todo } from '../types'
 
 const isOn = atom({ plugin: 'zen', key: 'isOn' } as const, true)
+const isBrief = atom({ plugin: 'zen', key: 'isBrief' } as const, true)
 const IDLE: Band = { activity: 'Working', tools: 0, agents: 0, todo: null }
 const band = atom({ plugin: 'zen', key: 'band' } as const, IDLE)
 const facts = atom({ plugin: 'zen', key: 'facts' } as const, [])
@@ -129,18 +130,14 @@ export const bandLine = (state: Band) => {
   return `◇ ${state.activity} · ${plural(state.tools, 'tool')}${agents}`
 }
 
-const showStatus = async ($: EngineInterface) => {
-  const isBrief = (await $.store.get('brevity')) !== false
-  $.ui.status((await $.store.get('isOn')) === false ? undefined : isBrief ? 'on · brief' : 'on')
-}
-
 export const register: Register = on => {
   let turn = freshTurn()
 
   on('session.start', async ($, e, next) => {
     const stored = await $.store.get('isOn')
+    const brevity = await $.store.get('brevity')
     await update($, isOn, () => stored !== false)
-    await showStatus($)
+    await update($, isBrief, () => brevity !== false)
     await $.command.register({
       name: 'zen',
       description: 'Toggle the zen view (on, off, brevity on, brevity off, status)',
@@ -156,7 +153,7 @@ export const register: Register = on => {
 
     if (args === 'brevity on' || args === 'brevity off') {
       await $.store.set('brevity', args === 'brevity on')
-      await showStatus($)
+      await update($, isBrief, () => args === 'brevity on')
 
       return { text: `brevity rule ${args.slice(8)} (from the next request)` }
     }
@@ -170,7 +167,6 @@ export const register: Register = on => {
     const next = args === '' ? !view : args === 'on'
     await $.store.set('isOn', next)
     await update($, isOn, () => next)
-    await showStatus($)
 
     return { text: `view ${next ? 'on' : 'off'}` }
   })
@@ -321,6 +317,13 @@ export const register: Register = on => {
     const { Box } = $.ui.resolve(e)
 
     return <Box display="none" />
+  })
+
+  on('ui.render', { component: 'SessionMode' }, async ($, e, next) => {
+    if (!(await read($, isOn))) return next(e)
+    const label = (await read($, isBrief)) ? 'zen · brief' : 'zen'
+
+    return next({ ...e, props: { ...e.props, modes: [...e.props.modes, label] } })
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {

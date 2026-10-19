@@ -11,6 +11,6 @@ export type Facts = { durationMs: number; line: string }
 
 declare module 'claude-code' {
   interface PluginState {
-    zen: { isOn: boolean; band: Band; facts: Facts[]; chatter: string[] }
+    zen: { isOn: boolean; isBrief: boolean; band: Band; facts: Facts[]; chatter: string[] }
   }
 }
