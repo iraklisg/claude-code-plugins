@@ -12,13 +12,16 @@ Settled in a grill-me session on 2026-10-19 (mod API: Claude Code 2.1.303).
 - Read / Grep / Glob / WebFetch / WebSearch / Skill / Agent / Workflow rows
 - Edit / Write / NotebookEdit rows and their diffs (the edit permission dialog still shows its diff: engine-drawn)
 - AskUserQuestion's answered row (the dialog itself stays)
+- Errors of read-only tools (Read / Grep / Glob / WebFetch / WebSearch): self-corrections Claude recovers from
+- Finished-task notifications (`Agent "…" finished`, `Dynamic workflow "…" completed`) and subagent messages (`Message from @…`): Claude relays them next. Failed or killed tasks stay. ctrl+o (`isExpanded`) shows them.
+- `/zen` switch replies (`view off`, `brevity on`): the footer label shows the state. `/zen status` replies stay.
 - Successful Bash
 - Tool groups (unless `isExpanded`)
 
 Rows are hidden by zen itself (option a), so ctrl+o cannot reveal them: the `ToolUse` site has no expanded flag and ctrl+o is an engine key. Escape hatch: `/zen off` redraws the whole transcript in the default view. (Option b, hiding only the engine's folded groups so ctrl+o works, was set aside: noisier.)
 
 **Always visible**
-- Tool errors and interrupted tools
+- Errors and interruptions of tools that act (Bash, Edit, Write, ...)
 - Failed Bash (errored): the engine's own row and error output
 - Permission prompts (engine-drawn; the mod can't hide them anyway), AskUserQuestion
 
@@ -60,7 +63,7 @@ Never forces Claude to plan (no prompt injection for progress). Yields to survey
 
 ## Success criterion
 
-A tiny TS project committed at `fixture/` (its tests named `*.spec.ts` so `claude plugin test` ignores them) with a planted bug and a `getUser` function. Each scenario is run with real Claude via `claude --plugin-dir ~/Code/zen` in an isolated tmux (`tmux -L zentest`, never the default socket), then checked with `capture-pane`.
+A tiny TS project committed at `fixture/` (its tests named `*.spec.ts` so `claude plugin test` ignores them) with a planted bug and a `getUser` function. Each scenario is run with real Claude via `scripts/run.sh <name> '<prompt>'`: a fresh fixture copy, `claude --plugin-dir` in an isolated tmux (`tmux -L zentest`, never the default socket), checked with `capture-pane`. Runs share the mod's `$.store` with your own `--plugin-dir` sessions: restore `/zen on` and `/zen brevity on` after a run that toggles them.
 
 **A. Refactor across 3 files** ("rename getUser to fetchUser everywhere")
 ```
@@ -112,3 +115,4 @@ Band while working: `◇ Reading · 7 tools`.
 ## Settled after real use
 
 - Diffs hidden (Q27); this resolved the deferred `Update(path)` header and diff-cap questions.
+- The turn's `✻ … for 11s` line stays: it marks where a turn ends and carries the test result (Q33).

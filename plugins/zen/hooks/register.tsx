@@ -68,11 +68,18 @@ const freshTurn = (): Turn => ({
   tasks: new Map(),
 })
 
+// Their errors are self-corrections (a missing file, a bad pattern) Claude recovers from.
+const READ_ONLY = new Set(['Read', 'Grep', 'Glob', 'LS', 'WebFetch', 'WebSearch'])
+
 // AskUserQuestion's row is hidden once answered; its dialog is a site of its own.
 const isQuiet = (tool: string, isErrored: boolean, isInterrupted: boolean, isRunning: boolean) =>
-  !isErrored &&
-  !isInterrupted &&
-  (QUIET.has(tool) || tool === 'Bash' || (tool === 'AskUserQuestion' && !isRunning))
+  READ_ONLY.has(tool) ||
+  (!isErrored &&
+    !isInterrupted &&
+    (QUIET.has(tool) || tool === 'Bash' || (tool === 'AskUserQuestion' && !isRunning)))
+
+// `/zen status` and usage replies stay; the footer label already shows a switch.
+const SWITCHES = new Set(['', 'on', 'off', 'brevity on', 'brevity off'])
 
 const todoOf = (
   items: ReadonlyArray<{ status: string; activeForm?: string; subject?: string; content?: string }>,
@@ -301,7 +308,9 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'ToolGroup' }, async ($, e, next) => {
-    const hasTrouble = e.props.calls.some(call => call.isErrored || call.isInterrupted)
+    const hasTrouble = e.props.calls.some(
+      call => !isQuiet(call.tool, call.isErrored, call.isInterrupted, call.isRunning),
+    )
     if (e.props.isExpanded || hasTrouble || !(await read($, isOn))) return next(e)
     const { Box } = $.ui.resolve(e)
 
@@ -313,6 +322,24 @@ export const register: Register = on => {
     const label = (await read($, isBrief)) ? 'zen · brief' : 'zen'
 
     return next({ ...e, props: { ...e.props, modes: [...e.props.modes, label] } })
+  })
+
+  on('ui.render', { component: 'UserMessage' }, async ($, e, next) => {
+    const { origin, task, from, isExpanded } = e.props
+    const isTaskDone =
+      origin.kind === 'task-notification' && task?.status !== 'failed' && task?.status !== 'killed'
+    const isAgentMessage = from !== undefined && origin.kind === 'unclassified'
+    if (isExpanded || !(isTaskDone || isAgentMessage) || !(await read($, isOn))) return next(e)
+    const { Box } = $.ui.resolve(e)
+
+    return <Box display="none" />
+  })
+
+  on('ui.render', { component: 'CommandOutput', props: { command: 'zen' } }, ($, e, next) => {
+    if (e.props.isErrored || !SWITCHES.has(e.props.args.trim().toLowerCase())) return next(e)
+    const { Box } = $.ui.resolve(e)
+
+    return <Box display="none" />
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {

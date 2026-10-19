@@ -175,3 +175,31 @@ test('hides text written before a tool call and keeps the final answer', async (
   expect(await (await block('Let me check  the tests.')).drawn()).toMatchObject({ props: { display: 'none' } })
   expect(await (await block('Fixed.')).drawn()).not.toMatchObject({ props: { display: 'none' } })
 })
+
+test('hides finished-task rows, read errors and /zen switch replies; keeps failures', async ($, on) => {
+  mock.store(on)
+  on('ui.render', () => ({ type: 'Text', props: {}, children: ['engine row'] }) as never)
+  const isHidden = async (component: string, props: object) => {
+    const drawn = await (
+      await $.ui.mount({ plugin: 'zen', surface: 'terminal', component, requestId: JSON.stringify(props), props } as never)
+    ).drawn()
+
+    return (drawn as { props?: { display?: string } }).props?.display === 'none'
+  }
+  const note = (status: string) => ({
+    text: 'Agent "x" finished',
+    origin: { kind: 'task-notification' },
+    isExpanded: false,
+    task: { id: 'a1', status },
+  })
+  const use = (tool: string) => ({ tool_use_id: 'x', tool, input: {}, isRunning: false, isErrored: true, isInterrupted: false })
+
+  expect(await isHidden('UserMessage', note('completed'))).toBe(true)
+  expect(await isHidden('UserMessage', note('failed'))).toBe(false)
+  expect(await isHidden('UserMessage', { ...note('completed'), isExpanded: true })).toBe(false)
+  expect(await isHidden('UserMessage', { text: 'hi', origin: { kind: 'composer' }, isExpanded: false })).toBe(false)
+  expect(await isHidden('ToolUse', use('Read'))).toBe(true)
+  expect(await isHidden('ToolUse', use('Edit'))).toBe(false)
+  expect(await isHidden('CommandOutput', { command: 'zen', args: 'off', text: 'view off', isErrored: false })).toBe(true)
+  expect(await isHidden('CommandOutput', { command: 'zen', args: 'status', text: 'view on', isErrored: false })).toBe(false)
+})
