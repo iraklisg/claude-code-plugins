@@ -1,5 +1,5 @@
 import { atom, read, update } from 'claude-code'
-import type { BuiltinToolResults, Register } from 'claude-code'
+import type { BuiltinToolResults, EngineInterface, Register } from 'claude-code'
 
 import type { Band, Todo } from '../types'
 
@@ -129,12 +129,18 @@ export const bandLine = (state: Band) => {
   return `◇ ${state.activity} · ${plural(state.tools, 'tool')}${agents}`
 }
 
+const showStatus = async ($: EngineInterface) => {
+  const isBrief = (await $.store.get('brevity')) !== false
+  $.ui.status((await $.store.get('isOn')) === false ? undefined : isBrief ? 'on · brief' : 'on')
+}
+
 export const register: Register = on => {
   let turn = freshTurn()
 
   on('session.start', async ($, e, next) => {
     const stored = await $.store.get('isOn')
     await update($, isOn, () => stored !== false)
+    await showStatus($)
     await $.command.register({
       name: 'zen',
       description: 'Toggle the zen view (on, off, brevity on, brevity off, status)',
@@ -150,6 +156,7 @@ export const register: Register = on => {
 
     if (args === 'brevity on' || args === 'brevity off') {
       await $.store.set('brevity', args === 'brevity on')
+      await showStatus($)
 
       return { text: `brevity rule ${args.slice(8)} (from the next request)` }
     }
@@ -163,6 +170,7 @@ export const register: Register = on => {
     const next = args === '' ? !view : args === 'on'
     await $.store.set('isOn', next)
     await update($, isOn, () => next)
+    await showStatus($)
 
     return { text: `view ${next ? 'on' : 'off'}` }
   })
