@@ -7,6 +7,8 @@ const isOn = atom({ plugin: 'zen', key: 'isOn' } as const, true)
 const IDLE: Band = { activity: 'Working', tools: 0, agents: 0, todo: null }
 const band = atom({ plugin: 'zen', key: 'band' } as const, IDLE)
 const facts = atom({ plugin: 'zen', key: 'facts' } as const, [])
+// Text Claude wrote before a tool call this session; the final answer never lands here.
+const chatter = atom({ plugin: 'zen', key: 'chatter' } as const, [])
 
 // Rows hidden unless they errored. Bash joins them when it succeeds.
 const QUIET = new Set([
@@ -93,6 +95,8 @@ const todoOf = (
     current: doing?.activeForm ?? doing?.subject ?? doing?.content ?? '',
   }
 }
+
+const squash = (text: string) => text.replace(/\s+/g, ' ').trim()
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
@@ -226,6 +230,16 @@ export const register: Register = on => {
     return ran
   }).catch(($, e, next) => next(e))
 
+  on('turn.step', async function* ($, e, next) {
+    const step = yield* next(e)
+    const text = squash(step.answer)
+    if (e.agentId === undefined && step.toolUses.length > 0 && text !== '') {
+      await update($, chatter, list => [...list, text].slice(-200))
+    }
+
+    return step
+  })
+
   on('turn.complete', async ($, e, next) => {
     const done = await next(e)
     if (e.agentId !== undefined) return done
@@ -264,6 +278,18 @@ export const register: Register = on => {
       sections: [...composed.sections, { id: 'zen:brevity', text: BREVITY, scope: 'session' }],
     }
   }).catch(($, e, next) => next(e))
+
+  on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
+    if (!(await read($, isOn))) return next(e)
+    const text = squash(e.props.text)
+    const isChatter =
+      e.props.isSummary === true ||
+      (text !== '' && (await read($, chatter)).some(one => one.includes(text)))
+    if (!isChatter) return next(e)
+    const { Box } = $.ui.resolve(e)
+
+    return <Box display="none" />
+  })
 
   on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
     const { tool, isErrored, isInterrupted } = e.props

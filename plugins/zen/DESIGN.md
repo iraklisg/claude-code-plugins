@@ -42,7 +42,7 @@ Never forces Claude to plan (no prompt injection for progress). Yields to survey
 
 ## Prose
 
-`prompt.compose` appends a `session`-scope section: no preamble, no step narration, final answer leads with the outcome. Toggle: `/zen brevity on|off`. It does not tell Claude to skip listing files (shell edits would go unreported) or to prefer Edit over sed (more calls, slower turns). No guess-based hiding of intermediate assistant text in v1.
+`prompt.compose` appends a `session`-scope section: no preamble, no step narration, final answer leads with the outcome. Toggle: `/zen brevity on|off`. It does not tell Claude to skip listing files (shell edits would go unreported) or to prefer Edit over sed (more calls, slower turns). In-between text is hidden by the view (free, independent of brevity): `turn.step` records each response's text that came with tool calls, and `AssistantMessage` blocks matching a recorded text (or `isSummary`) are hidden. The final answer is never recorded, so it always shows; after `--resume` nothing is recorded, so old text stays visible.
 
 ## Controls
 
