@@ -1,1 +1,6 @@
 .claude-plugin/types/
+
+# Claude configuration (symlinks to shared infrastructure)
+.claude
+
+.mcp.json
