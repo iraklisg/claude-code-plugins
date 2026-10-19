@@ -1,6 +1,6 @@
 export type Todo = { done: number; total: number; current: string }
 
-export type Agent = { id: string; type: string }
+export type Agent = { id: string; description: string }
 
 export type Band = {
   activity: string

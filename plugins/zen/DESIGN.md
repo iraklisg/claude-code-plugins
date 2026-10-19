@@ -28,7 +28,8 @@ One line. Progress has priority:
 - Todo list exists (TodoWrite / TaskCreate / TaskUpdate, main agent only): `▰▰▱ 2/3 · <current step>`
 - Otherwise activity: `◇ Editing · 6 tools`
 - Subagents appended: `· 2 agents`
-- Between turns, while background agents still run: `◇ 2 agents running · Explore ×2` (tracked from `agent.spawn` and each agent's `turn.complete`; gone at zero). The `N background agents launched` row stays as the record of what started.
+- Between turns, while background agents still run: `◇ 2 agents running · Explore auth code paths, Repo conventions research` (the Agent calls' descriptions, cut to width; tracked from `agent.spawn` and each agent's `turn.complete`; gone at zero).
+- The engine's `N background agents launched` row can't be hidden: no render site draws it (checked by logging every site during a launch). Each agent's own `Agent` row is hidden.
 
 Never forces Claude to plan (no prompt injection for progress). Yields to surveys (`hasSurvey`).
 

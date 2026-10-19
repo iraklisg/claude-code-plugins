@@ -4,8 +4,8 @@ import { agentsLine, bandLine, factsLine } from '../hooks/register'
 
 const TURN = 'turn-1'
 const TWO = [
-  { id: 'a1', type: 'Explore' },
-  { id: 'a2', type: 'repo-research-analyst' },
+  { id: 'a1', description: 'Explore auth code paths' },
+  { id: 'a2', description: 'Repo conventions research' },
 ]
 
 const editResult = {
@@ -29,9 +29,8 @@ test('band shows progress over activity', () => {
   expect(
     bandLine({ activity: 'Editing', tools: 3, todo: { done: 2, total: 3, current: 'Updating routes' } }, TWO),
   ).toBe('▰▰▱ 2/3 · Updating routes · 2 agents')
-  expect(agentsLine(TWO)).toBe('◇ 2 agents running · Explore, repo-research-analyst')
-  expect(agentsLine([...TWO, { id: 'a3', type: 'Explore' }])).toBe(
-    '◇ 3 agents running · Explore ×2, repo-research-analyst',
+  expect(agentsLine(TWO)).toBe(
+    '◇ 2 agents running · Explore auth code paths, Repo conventions research',
   )
 })
 

@@ -94,13 +94,8 @@ const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 export const factsLine = (turn: Turn) =>
   turn.testsPassed === null ? '' : `◇ tests ${turn.testsPassed ? '✓' : '✗'}`
 
-export const agentsLine = (running: readonly Agent[]) => {
-  const counts = new Map<string, number>()
-  for (const one of running) counts.set(one.type, (counts.get(one.type) ?? 0) + 1)
-  const types = [...counts].map(([type, n]) => (n > 1 ? `${type} ×${n}` : type))
-
-  return `◇ ${plural(running.length, 'agent')} running · ${types.join(', ')}`
-}
+export const agentsLine = (running: readonly Agent[]) =>
+  `◇ ${plural(running.length, 'agent')} running · ${running.map(one => one.description).join(', ')}`
 
 export const bandLine = (state: Band, running: readonly Agent[]) => {
   const agents = running.length > 0 ? ` · ${plural(running.length, 'agent')}` : ''
@@ -175,7 +170,7 @@ export const register: Register = on => {
     const spawned = await next(e)
     const id = spawned.agentId
     if (id !== undefined) {
-      await update($, agents, list => [...list, { id, type: e.subagentType }])
+      await update($, agents, list => [...list, { id, description: e.description }])
     }
 
     return spawned
