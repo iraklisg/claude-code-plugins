@@ -1,0 +1,13 @@
+{
+  "name": "zen",
+  "description": "zen: a calm, brief transcript view for Claude Code",
+  "owner": {
+    "name": "Iraklis Georgas"
+  },
+  "plugins": [
+    {
+      "name": "zen",
+      "source": "./"
+    }
+  ]
+}
