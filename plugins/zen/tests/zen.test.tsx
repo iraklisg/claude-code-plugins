@@ -18,15 +18,10 @@ const editResult = {
   replaceAll: false,
 }
 
-test('facts line sums files, commands and the last test run', () => {
-  const files = new Map([
-    ['a.ts', { added: 2, removed: 1 }],
-    ['b.ts', { added: 1, removed: 0 }],
-  ])
-  expect(factsLine({ files, cmds: 1, testsPassed: true, tasks: new Map() })).toBe(
-    '◇ 2 files +3 −1 · 1 cmd · tests ✓',
-  )
-  expect(factsLine({ files: new Map(), cmds: 0, testsPassed: null, tasks: new Map() })).toBe('')
+test('facts line reports only the last test run', () => {
+  expect(factsLine({ testsPassed: true, tasks: new Map() })).toBe('◇ tests ✓')
+  expect(factsLine({ testsPassed: false, tasks: new Map() })).toBe('◇ tests ✗')
+  expect(factsLine({ testsPassed: null, tasks: new Map() })).toBe('')
 })
 
 test('band shows progress over activity', () => {
@@ -40,7 +35,7 @@ test('band shows progress over activity', () => {
   )
 })
 
-test('turn end shows the facts line after an edit and a failed test run', async ($, on) => {
+test('turn end shows a failed test run, not the edit', async ($, on) => {
   mock.store(on)
   on('tool.call', (_, e) =>
     e.tool === 'Edit'
@@ -76,7 +71,7 @@ test('turn end shows the facts line after an edit and a failed test run', async 
     requestId: 'd1',
     props: { word: 'Baked', durationMs: 10 },
   })
-  expect((await row.find({ type: 'Text', text: '◇' }))?.text).toBe('◇ 1 file +2 −1 · 1 cmd · tests ✗')
+  expect((await row.find({ type: 'Text', text: '◇' }))?.text).toBe('◇ tests ✗')
 })
 
 test('a piped test run that printed failures counts as failed', async ($, on) => {
@@ -96,7 +91,7 @@ test('a piped test run that printed failures counts as failed', async ($, on) =>
     requestId: 'd1',
     props: { word: 'Baked', durationMs: 10 },
   })
-  expect((await row.find({ type: 'Text', text: '◇' }))?.text).toBe('◇ 1 cmd · tests ✗')
+  expect((await row.find({ type: 'Text', text: '◇' }))?.text).toBe('◇ tests ✗')
 })
 
 test('read-only turn leaves the answer alone', async ($, on) => {
@@ -142,6 +137,9 @@ for (const surface of ['terminal', 'desktop'] as const) {
 
     const quiet = await row('Read', false)
     expect(await quiet.drawn()).toMatchObject({ type: 'Box', props: { display: 'none' } })
+
+    const edit = await row('Edit', false)
+    expect(await edit.drawn()).toMatchObject({ type: 'Box', props: { display: 'none' } })
 
     const failed = await row('Bash', true)
     expect(await failed.drawn()).not.toMatchObject({ props: { display: 'none' } })

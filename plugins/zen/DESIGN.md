@@ -1,6 +1,6 @@
 # zen: design
 
-A Claude Code mod that turns the transcript into a focused, brief view. Principle: brevity. Hide noise; keep diffs, failures, progress, and the answer.
+A Claude Code mod that turns the transcript into a focused, brief view. Principle: brevity. Hide noise; keep failures, progress, the test result and the answer. Diffs are reviewed outside Claude Code (VS Code, lazygit).
 
 **Hard requirement:** zen adds no model calls and nothing slows a turn. The only thing the model reads from zen is the brevity rule (~100 tokens, cached), which has its own off switch.
 
@@ -10,16 +10,16 @@ Settled in a grill-me session on 2026-10-19 (mod API: Claude Code 2.1.303).
 
 **Hidden**
 - Read / Grep / Glob / WebFetch / WebSearch / Skill rows
+- Edit / Write / NotebookEdit rows and their diffs (the edit permission dialog still shows its diff: engine-drawn)
 - AskUserQuestion's answered row (the dialog itself stays)
-- Successful Bash (counted in the facts line)
+- Successful Bash
 - Tool groups (unless `isExpanded`)
 
 Rows are hidden by zen itself (option a), so ctrl+o cannot reveal them: the `ToolUse` site has no expanded flag and ctrl+o is an engine key. Escape hatch: `/zen off` redraws the whole transcript in the default view. (Option b, hiding only the engine's folded groups so ctrl+o works, was set aside: noisier.)
 
 **Always visible**
-- Native Edit/Write diffs, untouched
 - Tool errors and interrupted tools
-- Failed Bash (non-zero exit): command plus last 5 lines of output
+- Failed Bash (errored): the engine's own row and error output
 - Permission prompts (engine-drawn; the mod can't hide them anyway), AskUserQuestion
 
 ## Live band (`AbovePrompt`, while working)
@@ -35,12 +35,11 @@ Never forces Claude to plan (no prompt injection for progress). Yields to survey
 ## End of turn
 
 - Claude's final answer, untouched.
-- Facts line under the turn's `✻ Worked for 11s` row (`TurnDuration` site, matched by `durationMs`), only if the turn edited files or ran non-read-only commands. (`turn.complete` text was tried: the engine prefixes it with every plugin hooking that event.)
-  `◇ 3 files +42 −17 · 2 cmds · tests ✓`
+- Facts line under the turn's `✻ Worked for 11s` row (`TurnDuration` site, matched by `durationMs`), only if tests ran in the turn: `◇ tests ✓` / `◇ tests ✗`. (`turn.complete` text was tried: the engine prefixes it with every plugin hooking that event.)
   - Built by the mod from tool events, no side model call.
+  - File and command counts were dropped: shell edits (`sed -i`) escape them, Claude's answer and git already say what changed, and a count isn't actionable. The test result is kept because it checks Claude's own claim.
   - Tests: detected by command name (`pytest`, `vitest`, `jest`, `go test`, `cargo test`, `npm/pnpm test`); ✓/✗ is the last test run in the turn: failed if it errored or its output shows a failure marker (`N failed`, `FAIL`, `FAILED`, `--- FAIL`). The markers matter because Claude pipes test output, which hides the exit code.
-  - Files count Edit/Write only. Edits made through the shell (`sed -i`) show no diffs and aren't counted; Claude names those files in its answer.
-- Research-only turns: answer only, no facts line.
+- Turns without tests: answer only.
 
 ## Prose
 
@@ -48,7 +47,6 @@ Never forces Claude to plan (no prompt injection for progress). Yields to survey
 
 ## Controls
 
-- ctrl+o: full detail.
 - `/zen [on|off|status|brevity on|brevity off]`: bare `/zen` toggles the view; persisted in `$.store` across sessions.
 - Indicator: a dim `zen · brief` (or `zen`) label at the right of the prompt footer (`SessionMode` site); nothing when the view is off. (`$.ui.status` was tried: the engine prefixes it `⚠ zen:` and it takes its own row.)
 - The mod never writes settings files.
@@ -67,34 +65,20 @@ A tiny TS project committed at `fixture/` (its tests named `*.spec.ts` so `claud
 ```
 > rename getUser to fetchUser everywhere
 
-● Update(src/api.ts)
-  ⎿  Updated src/api.ts with 1 addition and 1 removal
-     (native diff)
-● Update(src/routes.ts)
-  ⎿  (native diff)
-● Update(src/user.test.ts)
-  ⎿  (native diff)
-
-Renamed getUser → fetchUser in 3 files. Typecheck passes.
-
-◇ 3 files +3 −3 · 1 cmd
+● Renamed getUser → fetchUser in 4 files. Typecheck passes; sum.spec.ts
+  fails as before (unrelated).
+✻ Worked for 14s
+◇ tests ✗
 ```
 Band while working: `▰▰▱ 2/3 · Update routes` (if todo list) or `◇ Editing · 6 tools`.
 
 **B. Debug a failing test** ("fix the failing test")
 ```
-> fix the failing test in sum.test.ts
+> fix the failing test
 
-● Bash(pnpm vitest run)
-  ⎿  FAIL sum.test.ts > adds negatives
-     expected -3, received 3
-     (last 5 lines only)
-● Update(src/sum.ts)
-  ⎿  (native diff)
-
-Fixed: sum() applied Math.abs to inputs. Test passes.
-
-◇ 1 file +1 −1 · 2 cmds · tests ✓
+● Fixed: sum() applied Math.abs to inputs. All tests pass.
+✻ Baked for 18s
+◇ tests ✓
 ```
 
 **C. Research question** ("how does the auth middleware work?")
@@ -124,7 +108,6 @@ Band while working: `◇ Reading · 7 tools`.
    ```
 4. Plugin files must not be symlinks (no stow).
 
-## Deferred (decide after test runs)
+## Settled after real use
 
-- Hide the `Update(path)` header rows, or keep them?
-- Cap long diffs (e.g. 8 lines + `… +N lines`)?
+- Diffs hidden (Q27); this resolved the deferred `Update(path)` header and diff-cap questions.

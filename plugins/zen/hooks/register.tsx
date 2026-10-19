@@ -8,8 +8,8 @@ const isBrief = atom({ plugin: 'zen', key: 'isBrief' } as const, true)
 const IDLE: Band = { activity: 'Working', tools: 0, todo: null }
 const band = atom({ plugin: 'zen', key: 'band' } as const, IDLE)
 const facts = atom({ plugin: 'zen', key: 'facts' } as const, [])
-// Text Claude wrote before a tool call this session; the final answer never lands here.
 const agents = atom({ plugin: 'zen', key: 'agents' } as const, [])
+// Text Claude wrote before a tool call this session; the final answer never lands here.
 const chatter = atom({ plugin: 'zen', key: 'chatter' } as const, [])
 
 // Rows hidden unless they errored. Bash joins them when it succeeds.
@@ -27,6 +27,9 @@ const QUIET = new Set([
   'TaskGet',
   'Agent',
   'Skill',
+  'Edit',
+  'Write',
+  'NotebookEdit',
 ])
 
 const VERBS: Record<string, string> = {
@@ -49,22 +52,17 @@ const TEST_FAILED = /\b[1-9]\d* (failed|failing)\b|(^|\s)FAIL(ED)?\b|--- FAIL/m
 
 const BREVITY = [
   '# Brevity (zen)',
-  'The user sees a condensed transcript: tool calls are hidden; file diffs, failures and your final message are shown.',
+  'The user sees a condensed transcript: tool calls and diffs are hidden; failures and your final message are shown.',
   '- No preamble and no narration of steps between tool calls.',
   '- The final message leads with the outcome in one or two sentences. Add detail only when the user needs it to act.',
 ].join('\n')
 
-type Patch = ReadonlyArray<{ lines: string[] }>
 type Turn = {
-  files: Map<string, { added: number; removed: number }>
-  cmds: number
   testsPassed: boolean | null
   tasks: Map<string, { subject: string; activeForm?: string; status: string }>
 }
 
 const freshTurn = (): Turn => ({
-  files: new Map(),
-  cmds: 0,
   testsPassed: null,
   tasks: new Map(),
 })
@@ -74,19 +72,6 @@ const isQuiet = (tool: string, isErrored: boolean, isInterrupted: boolean, isRun
   !isErrored &&
   !isInterrupted &&
   (QUIET.has(tool) || tool === 'Bash' || (tool === 'AskUserQuestion' && !isRunning))
-
-const countPatch = (patch: Patch) => {
-  let added = 0
-  let removed = 0
-  for (const hunk of patch) {
-    for (const line of hunk.lines) {
-      if (line.startsWith('+')) added += 1
-      else if (line.startsWith('-')) removed += 1
-    }
-  }
-
-  return { added, removed }
-}
 
 const todoOf = (
   items: ReadonlyArray<{ status: string; activeForm?: string; subject?: string; content?: string }>,
@@ -106,22 +91,8 @@ const squash = (text: string) => text.replace(/\s+/g, ' ').trim()
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
-export const factsLine = (turn: Turn) => {
-  const parts: string[] = []
-  if (turn.files.size > 0) {
-    let added = 0
-    let removed = 0
-    for (const file of turn.files.values()) {
-      added += file.added
-      removed += file.removed
-    }
-    parts.push(`${plural(turn.files.size, 'file')} +${added} −${removed}`)
-  }
-  if (turn.cmds > 0) parts.push(plural(turn.cmds, 'cmd'))
-  if (turn.testsPassed !== null) parts.push(`tests ${turn.testsPassed ? '✓' : '✗'}`)
-
-  return parts.length === 0 ? '' : `◇ ${parts.join(' · ')}`
-}
+export const factsLine = (turn: Turn) =>
+  turn.testsPassed === null ? '' : `◇ tests ${turn.testsPassed ? '✓' : '✗'}`
 
 export const agentsLine = (running: readonly Agent[]) => {
   const counts = new Map<string, number>()
@@ -221,22 +192,8 @@ export const register: Register = on => {
     const ran = await next(e)
     if (ran.deny !== undefined) return ran
 
-    if (e.tool === 'Bash') {
-      if (ran.isReadOnly !== true) turn.cmds += 1
-      if (TEST_RUNNER.test(e.command)) {
-        turn.testsPassed = ran.isError !== true && !TEST_FAILED.test(ran.text ?? '')
-      }
-    } else if (ran.isError !== true && (e.tool === 'Edit' || e.tool === 'Write')) {
-      const result = ran.result as BuiltinToolResults['Edit'] | BuiltinToolResults['Write']
-      const isNewFile = 'content' in result && result.structuredPatch.length === 0
-      const counted = isNewFile
-        ? { added: result.content.split('\n').length, removed: 0 }
-        : countPatch(result.structuredPatch)
-      const prior = turn.files.get(result.filePath) ?? { added: 0, removed: 0 }
-      turn.files.set(result.filePath, {
-        added: prior.added + counted.added,
-        removed: prior.removed + counted.removed,
-      })
+    if (e.tool === 'Bash' && TEST_RUNNER.test(e.command)) {
+      turn.testsPassed = ran.isError !== true && !TEST_FAILED.test(ran.text ?? '')
     } else if (e.tool === 'TodoWrite') {
       const todo = todoOf(e.todos)
       await update($, band, state => ({ ...state, todo }))
