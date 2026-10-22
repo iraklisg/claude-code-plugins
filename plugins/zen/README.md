@@ -38,7 +38,7 @@ With zen:
 | File reads, searches, web fetches, tool searches | Inputs Claude gathers on its way to the answer, not results |
 | Shell commands, MCP calls and any other tool that succeeds | You only need to know when one fails |
 | Edits and their diffs | You review changes in your editor or git tool |
-| Claude's in-between narration ("Let me check…") | The final answer covers it |
+| Claude's in-between narration ("Let me check…") | The final answer covers it. Text written with a question or a plan to approve stays: no answer follows it |
 | Skill, agent and workflow launch rows | The live line above the prompt shows what's running |
 | Finished-agent notices | Claude relays the result in its next message |
 | Errors from reads and searches | Self-corrections (a missing file, a bad pattern) Claude recovers from |

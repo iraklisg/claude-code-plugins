@@ -176,6 +176,40 @@ test('hides text written before a tool call and keeps the final answer', async (
   expect(await (await block('Fixed.')).drawn()).not.toMatchObject({ props: { display: 'none' } })
 })
 
+test('keeps text written with a question or a plan to approve', async ($, on) => {
+  mock.store(on)
+  const asks = ['AskUserQuestion', 'ExitPlanMode']
+  on('turn.step', async function* (_, e) {
+    return {
+      turnId: e.turnId,
+      index: e.index,
+      answer: `Findings ${e.index}`,
+      toolUses: [{ id: `t${e.index}`, name: asks[e.index], input: {} }],
+      stopReason: 'tool_use',
+      usage: null,
+    } as never
+  })
+  on('ui.render', () => ({ type: 'Text', props: {}, children: ['engine row'] }) as never)
+
+  for (const index of [0, 1]) {
+    const stream = $.turn.step({ turnId: TURN, index, model: 'm', messageCount: 1 } as never)
+    for await (const _ of stream as AsyncIterable<unknown>) void _
+  }
+  for (const index of [0, 1]) {
+    const text = `Findings ${index}`
+    const drawn = await (
+      await $.ui.mount({
+        plugin: 'zen',
+        surface: 'terminal',
+        component: 'AssistantMessage',
+        requestId: text,
+        props: { text, isFirstOfReply: true },
+      } as never)
+    ).drawn()
+    expect(drawn).not.toMatchObject({ props: { display: 'none' } })
+  }
+})
+
 test('hides finished-task rows, read errors and /zen switch replies; keeps failures', async ($, on) => {
   mock.store(on)
   on('ui.render', () => ({ type: 'Text', props: {}, children: ['engine row'] }) as never)

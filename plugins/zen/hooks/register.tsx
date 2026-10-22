@@ -9,12 +9,17 @@ const IDLE: Band = { activity: 'Working', tools: 0, todo: null }
 const band = atom({ plugin: 'zen', key: 'band' } as const, IDLE)
 const facts = atom({ plugin: 'zen', key: 'facts' } as const, [])
 const agents = atom({ plugin: 'zen', key: 'agents' } as const, [])
-// Text Claude wrote before a tool call this session; the final answer never lands here.
+// Text Claude wrote before a tool call this session; the final answer and the
+// context of a question never land here.
 const chatter = atom({ plugin: 'zen', key: 'chatter' } as const, [])
 
 // Rows that always show; every other tool's row is hidden unless it errored.
 // ExitPlanMode carries the plan to approve; AskUserQuestion shows only while waiting.
 const SHOWN = new Set(['ExitPlanMode', 'EndConversation'])
+
+// The turn stops at these to wait for the user, so no final answer follows to
+// cover the text written with them: it is the question's context, not chatter.
+const ASKS = new Set(['AskUserQuestion', 'ExitPlanMode'])
 
 const VERBS: Record<string, string> = {
   Read: 'Reading',
@@ -221,7 +226,8 @@ export const register: Register = on => {
   on('turn.step', async function* ($, e, next) {
     const step = yield* next(e)
     const text = squash(step.answer)
-    if (e.agentId === undefined && step.toolUses.length > 0 && text !== '') {
+    const asks = step.toolUses.some(use => ASKS.has(use.name))
+    if (e.agentId === undefined && step.toolUses.length > 0 && !asks && text !== '') {
       await update($, chatter, list => [...list, text].slice(-200))
     }
 
