@@ -51,7 +51,7 @@ With zen:
 - **Anything that needs you**: permission prompts, Claude's questions and plans to approve
 - **Progress while Claude works**, in one line above the prompt: `▰▰▱ 2/3 · Updating routes` · `◇ Reading · 4 tools` · `◇ 2 agents running · …`
 - **The test result** when tests ran: `◇ tests ✓` or `◇ tests ✗`. zen reads failure markers in the output, so a piped `pnpm test | tail` that failed still shows ✗
-- **The mode**: a dim `zen · brief` label in the prompt footer
+- **The mode**: a dim `zen · brief` label in the prompt footer. Click `zen` or `brief` to toggle it
 
 ## Brevity: shorter answers, not just a cleaner screen
 
@@ -65,7 +65,7 @@ Everything above is display only: Claude does the same work and writes the same 
 | Changes | what's drawn | what Claude writes |
 | Tokens | none | ~100 in the system prompt, cached after the first request |
 | Default | on | on |
-| Footer label | `zen` | adds `· brief` → `zen · brief` |
+| Footer label (click to toggle) | `zen` / `zen off` | `brief` / `brief off` |
 
 Brevity usually pays for itself, since shorter answers mean fewer output tokens, but that isn't guaranteed. Turn it off if you want zen to add nothing to the prompt. In an organization-managed Claude Code, plugins can't change the system prompt, so brevity has no effect there; the view still works.
 

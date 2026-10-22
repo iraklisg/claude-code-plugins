@@ -318,11 +318,35 @@ export const register: Register = on => {
     return <Box display="none" />
   })
 
+  // Clicking `zen` toggles the view, `brief` the brevity rule. Both stay drawn
+  // when off (`zen off`, `brief off`) so a click can bring them back.
   on('ui.render', { component: 'SessionMode' }, async ($, e, next) => {
-    if (!(await read($, isOn))) return next(e)
-    const label = (await read($, isBrief)) ? 'zen · brief' : 'zen'
+    const view = await read($, isOn)
+    const brevity = await read($, isBrief)
+    const { Box, Text, Button } = $.ui.resolve(e)
+    const toggleView = async () => {
+      await $.store.set('isOn', !view)
+      await update($, isOn, () => !view)
+    }
+    const toggleBrevity = async () => {
+      await $.store.set('brevity', !brevity)
+      await update($, isBrief, () => !brevity)
+    }
+    const hasModes = e.props.modes.length > 0
 
-    return next({ ...e, props: { ...e.props, modes: [...e.props.modes, label] } })
+    return (
+      <Box flexDirection="row">
+        {hasModes ? await next(e) : null}
+        {hasModes ? <Text dimColor> & </Text> : null}
+        <Button key="zen" plain dimColor onPress={toggleView}>
+          {view ? 'zen' : 'zen off'}
+        </Button>
+        <Text dimColor> · </Text>
+        <Button key="brief" plain dimColor onPress={toggleBrevity}>
+          {brevity ? 'brief' : 'brief off'}
+        </Button>
+      </Box>
+    )
   })
 
   on('ui.render', { component: 'UserMessage' }, async ($, e, next) => {

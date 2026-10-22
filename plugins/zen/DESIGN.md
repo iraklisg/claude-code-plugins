@@ -50,7 +50,7 @@ Never forces Claude to plan (no prompt injection for progress). Yields to survey
 ## Controls
 
 - `/zen [on|off|status|brevity on|brevity off]`: bare `/zen` toggles the view; persisted in `$.store` across sessions.
-- Indicator: a dim `zen · brief` (or `zen`) label at the right of the prompt footer (`SessionMode` site); nothing when the view is off. (`$.ui.status` was tried: the engine prefixes it `⚠ zen:` and it takes its own row.)
+- Indicator and switch: a dim `zen · brief` label at the right of the prompt footer (`SessionMode` site), each word a plain `Button`: click `zen` to toggle the view, `brief` to toggle brevity. Off states stay drawn (`zen off`, `brief off`) so a click brings them back. (`$.ui.status` was tried: the engine prefixes it `⚠ zen:` and it takes its own row.)
 - The mod never writes settings files.
 
 ## Scope
