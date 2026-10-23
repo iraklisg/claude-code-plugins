@@ -41,9 +41,11 @@ const TEST_FAILED = /\b[1-9]\d* (failed|failing)\b|(^|\s)FAIL(ED)?\b|--- FAIL/m
 
 const BREVITY = [
   '# Brevity (zen)',
-  'The user sees a condensed transcript: tool calls and diffs are hidden; failures and your final message are shown.',
+  'The user sees a condensed transcript: tool calls and diffs are hidden; failures, your final message, and text sent with a question are shown.',
   '- No preamble and no narration of steps between tool calls.',
-  '- The final message leads with the outcome in one or two sentences. Add detail only when the user needs it to act.',
+  '- The final message leads with the outcome in one or two sentences unless the user asked for an explanation. Add detail only when the user needs it to act.',
+  '- This applies to chat only: code, comments, commits and files you write keep their normal style.',
+  '- Before AskUserQuestion, answer any question the user asked in visible text in the same response; thinking is hidden and options are not an answer.',
 ].join('\n')
 
 type Turn = {

@@ -58,12 +58,14 @@ With zen:
 Everything above is display only: Claude does the same work and writes the same words, and zen chooses what to draw. **Brevity** is the one setting that changes what Claude writes. It adds a short rule to Claude's system prompt:
 
 - no preamble and no narration between steps
-- the final answer leads with the outcome in one or two sentences, with detail only when you need it to act
+- the final answer leads with the outcome in one or two sentences (unless you asked for an explanation), with detail only when you need it to act
+- chat only: code, comments, commits and files keep their normal style
+- answer your question in visible text before asking one back (thinking is hidden, and options aren't an answer)
 
 | | View (`/zen on`/`off`) | Brevity (`/zen brevity on`/`off`) |
 |---|---|---|
 | Changes | what's drawn | what Claude writes |
-| Tokens | none | ~100 in the system prompt, cached after the first request |
+| Tokens | none | ~150 in the system prompt, cached after the first request |
 | Default | on | on |
 | Footer label (click to toggle) | `zen` / `zen off` | `brief` / `brief off` |
 
@@ -100,7 +102,7 @@ Settings persist across sessions. Nothing is lost: `/zen off` redraws the whole 
 
 ## Cost
 
-No extra model calls. Brevity's ~100 tokens are the only prompt cost.
+No extra model calls. Brevity's ~150 tokens are the only prompt cost.
 
 See [DESIGN.md](DESIGN.md) for the decisions behind it.
 
