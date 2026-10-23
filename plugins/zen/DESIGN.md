@@ -99,7 +99,7 @@ Band while working: `◇ Reading · 7 tools`.
 
 ## Distribution
 
-1. Develop in `~/Code/zen`, loaded via `claude --plugin-dir ~/Code/zen`.
+1. Develop in `~/Code/claude-code-zen`, loaded via `claude --plugin-dir ~/Code/claude-code-zen`.
 2. After the success criterion passes: push to public `iraklisg/claude-code-zen`, which doubles as its own marketplace (`.claude-plugin/marketplace.json`, one entry, `"source": "./"`).
 3. Dotfiles (`~/.dotfiles/.claude/settings.json`) get only:
    ```json
