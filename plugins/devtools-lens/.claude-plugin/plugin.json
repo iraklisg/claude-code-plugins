@@ -1,0 +1,12 @@
+{
+  "name": "devtools-lens",
+  "version": "0.1.0",
+  "description": "A lens on the headless chrome-devtools MCP browser: the pages it lands on and the ones Claude points you to, above the prompt",
+  "author": {
+    "name": "Iraklis Georgas"
+  },
+  "homepage": "https://github.com/iraklisg/claude-code-plugins/tree/main/plugins/devtools-lens",
+  "repository": "https://github.com/iraklisg/claude-code-plugins",
+  "license": "MIT",
+  "types": "./types/index.d.ts"
+}
