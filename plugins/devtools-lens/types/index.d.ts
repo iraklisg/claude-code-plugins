@@ -14,17 +14,12 @@ export type Visit = {
   context: string | null
 }
 
-export type Headless = 'yes' | 'no' | 'unknown'
-
 declare module 'claude-code' {
   interface PluginState {
     'devtools-lens': {
-      pages: Shaped<Page[]>
       viewports: Shaped<Record<string, string>>
       visits: Shaped<Record<string, Visit>>
-      pins: Shaped<Visit[]>
-      usedThisTurn: boolean
-      headless: Headless
+      trail: Shaped<string[]>
     }
   }
 }

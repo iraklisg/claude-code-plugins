@@ -24,12 +24,7 @@ const PAGES = [
   '2: Login – Site (http://localhost:8000/de/login?next=/de/account/) [selected] isolatedContext=guest',
 ].join('\n')
 
-// `ps` rows under this session's Claude process, pid 100.
-const OURS = (args: string) => `100\n  200   100 ${args}\n  201   200 chrome-devtools-mcp`
-
-function engine(on: On, ps: string, results: Record<string, string> | (() => string)) {
-  on('process.run', () => ({ value: { exitCode: 0, stdout: ps, stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }))
-  on('clock.now', () => ({ value: 0 }))
+function engine(on: On, results: Record<string, string> | (() => string)) {
   on('tool.call', (_, e) => ({
     result: {},
     text: typeof results === 'function' ? results() : (results[e.tool] ?? ''),
@@ -39,8 +34,11 @@ function engine(on: On, ps: string, results: Record<string, string> | (() => str
 const call = ($: Engine, tool: string, input: Record<string, unknown>) =>
   $.tool.call({ tool, ...input } as Parameters<Engine['tool']['call']>[0])
 
+const pagesOn = (url: string, title: string) =>
+  `Successfully navigated.\n## Pages\n1: ${title} (${url}) [selected]`
+
 test('the band shows where the browser landed, after redirects', async ($, on) => {
-  engine(on, OURS('npm exec chrome-devtools-mcp@latest --headless=true'), { [NAV]: PAGES })
+  engine(on, { [NAV]: PAGES })
 
   await call($, 'mcp__chrome-devtools__resize_page', { pageId: 2, width: 390, height: 844 })
   await call($, NAV, { pageId: 2, type: 'url', url: 'http://localhost:8000/de/account/' })
@@ -66,84 +64,73 @@ test('nothing shows before a real page is open', async ($, on) => {
   await ui.unmount()
 })
 
-test('a headless browser adds the headless rule to the system prompt', async ($, on) => {
-  engine(on, OURS('npm exec chrome-devtools-mcp@latest --headless=true --isolated=true'), { [NAV]: PAGES })
-  on('prompt.compose', () => ({ sections: [] }))
+test('the band follows the page a call acts on, not the selected one', async ($, on) => {
+  const twoPages = [
+    'Successfully navigated.',
+    '## Pages',
+    '1: Article - Site (http://site.test/article/)',
+    '2: Editing Other - Site (http://site.test/cms/pages/534/edit/) [selected]',
+  ].join('\n')
+  engine(on, { [NAV]: twoPages, 'mcp__chrome-devtools__list_pages': twoPages })
 
-  await call($, NAV, { pageId: 2, type: 'url', url: 'http://localhost:8000/de/account/' })
-  const composed = await $.prompt.compose({
-    model: 'm',
-    promptModel: 'm',
-    surfaces: ['terminal'],
-    tools: [NAV],
-    outputStyle: null,
-    traits: [],
-  })
-  expect(composed.sections.map(section => section.id)).toEqual(['devtools-lens:headless'])
+  await call($, NAV, { pageId: 1, type: 'url', url: 'http://site.test/article/' })
+  await call($, 'mcp__chrome-devtools__list_pages', {})
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  expect((await ui.find({ type: 'Text', text: // }))?.text).toContain(' Article  http://site.test/article/')
+  expect(await ui.find({ type: 'Text', text: /534/ })).toBeUndefined()
+  await ui.unmount()
 })
 
-test('a visible browser adds no rule', async ($, on) => {
-  engine(on, OURS('npm exec chrome-devtools-mcp@latest --isolated=true'), { [NAV]: PAGES })
-  on('prompt.compose', () => ({ sections: [] }))
+test('a call without a page id follows the selected page', async ($, on) => {
+  const twoPages = [
+    'Successfully navigated.',
+    '## Pages',
+    '1: Article - Site (http://site.test/article/)',
+    '2: Home - Site (http://site.test/) [selected]',
+  ].join('\n')
+  engine(on, { [NAV]: twoPages, 'mcp__chrome-devtools__resize_page': twoPages })
 
-  await call($, NAV, { pageId: 2, type: 'url', url: 'http://localhost:8000/de/account/' })
-  const composed = await $.prompt.compose({
-    model: 'm',
-    promptModel: 'm',
-    surfaces: ['terminal'],
-    tools: [NAV],
-    outputStyle: null,
-    traits: [],
-  })
-  expect(composed.sections).toEqual([])
+  await call($, 'mcp__chrome-devtools__resize_page', { width: 390, height: 844 })
+  await call($, NAV, { type: 'url', url: 'http://site.test/' })
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  const rows = await ui.findAll({ type: 'Text', text: /\uf268/ })
+  expect(rows.map(row => row.text)).toEqual(['\uf268 Home  http://site.test/  \uf10b 390'])
+  await ui.unmount()
 })
 
-const pagesOn = (url: string, title: string) =>
-  `Successfully navigated.\n## Pages\n1: ${title} (${url}) [selected]`
-
-test('a visited page the reply names is pinned; pages passed through are not', async ($, on) => {
+test("the band lists the turn's pages in visit order, a revisit moving last, at most eight", async ($, on) => {
   let landing = ''
-  engine(on, '', () => landing)
-  on('turn.complete', (_, e) => ({ text: e.answer }))
+  engine(on, () => landing)
 
   const visit = async (url: string, title: string, width: number) => {
-    title = `${title} - Example Site`
-    landing = pagesOn(url, title)
+    landing = pagesOn(url, `${title} - Example Site`)
     await call($, 'mcp__chrome-devtools__resize_page', { pageId: 1, width, height: 800 })
     await call($, NAV, { pageId: 1, type: 'url', url })
   }
   await visit('http://site.test/magazin/', 'Overview', 1280)
   await visit('http://site.test/magazin/list/article-2/', 'Article', 390)
+  await visit('http://site.test/cms/pages/205/edit/', 'Editing Article', 1280)
   await visit('http://site.test/magazin/list/article-2/', 'Article', 1280)
-  await visit('http://site.test/other/', 'Side page', 1280)
-
-  await $.turn.complete({
-    answer: 'Here it is: **Article**\n\nhttp://site.test/magazin/list/article-2/\n\nAlso http://never.visited/.',
-    durationMs: 1,
-    isAborted: false,
-    turnId: 't1',
-    reason: 'answer',
-  })
+  for (const n of [1, 2, 3, 4, 5, 6]) await visit(`http://site.test/p${n}/`, `P${n}`, 1280)
 
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  const pin = await ui.find({ type: 'Text', text: /\uf268 Article/ })
-  expect(pin?.text).toContain('\uf268 Article  http://site.test/magazin/list/article-2/')
-  expect(pin?.text).toContain('/  \uf10b 390  \uf108 1280')
-  expect(await ui.find({ type: 'Text', text: /Overview|Side page/ })).toBeUndefined()
+  const rows = await ui.findAll({ type: 'Text', text: // })
+  expect(rows.map(row => row.text.split('  ')[0])).toEqual([
+    ' Editing Article', ' Article', ' P1', ' P2', ' P3', ' P4', ' P5', ' P6',
+  ])
+  expect(rows[1]?.text).toContain(' Article  http://site.test/magazin/list/article-2/   390   1280')
   await ui.unmount()
 })
 
-test('the next prompt clears the pins and the current page', async ($, on) => {
-  let landing = pagesOn('http://site.test/a/', 'Page A')
-  engine(on, '', () => landing)
-  on('turn.complete', (_, e) => ({ text: e.answer }))
+test('the next prompt clears the band', async ($, on) => {
+  engine(on, () => pagesOn('http://site.test/a/', 'Page A'))
   on('prompt.submit', (_, e) => ({ text: e.text }))
   on('ui.render', ($, e) => {
     const { Text } = $.ui.resolve(e)
     return <Text>engine</Text>
   })
-  const prompt = () =>
-    $.prompt.submit({ text: 'next', wait: false, origin: { kind: 'composer' } } as Parameters<Engine['prompt']['submit']>[0])
   const band = async () => {
     const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
     const text = (await ui.find({ type: 'Text' }))?.text
@@ -151,30 +138,38 @@ test('the next prompt clears the pins and the current page', async ($, on) => {
     return text
   }
 
-  await prompt()
   await call($, NAV, { pageId: 1, type: 'url', url: 'http://site.test/a/' })
-  expect(await band()).toContain('\uf268 Page A')
-  landing = pagesOn('http://site.test/b/', 'Page B')
-  await call($, NAV, { pageId: 1, type: 'url', url: 'http://site.test/b/' })
-  await $.turn.complete({ answer: 'See http://site.test/a/', durationMs: 1, isAborted: false, turnId: 't1', reason: 'answer' })
-  expect(await band()).toContain('\uf268 Page A  http://site.test/a/')
-
-  await prompt()
+  expect(await band()).toContain(' Page A  http://site.test/a/')
+  await $.prompt.submit({ text: 'next', wait: false, origin: { kind: 'composer' } } as Parameters<Engine['prompt']['submit']>[0])
   expect(await band()).toBe('engine')
 })
 
-test("another session's headless server adds no rule", async ($, on) => {
-  engine(on, '100\n  300   999 npm exec chrome-devtools-mcp@latest --headless=true', { [NAV]: PAGES })
-  on('prompt.compose', () => ({ sections: [] }))
-
-  await call($, NAV, { pageId: 2, type: 'url', url: 'http://localhost:8000/de/account/' })
-  const composed = await $.prompt.compose({
-    model: 'm',
-    promptModel: 'm',
-    surfaces: ['terminal'],
-    tools: [NAV],
-    outputStyle: null,
-    traits: [],
+test('a click that navigates shows the page it lands on', async ($, on) => {
+  engine(on, {
+    'mcp__chrome-devtools__new_page': pagesOn('http://site.test/cms/login/?next=/cms/pages/185/edit/', 'Sign in - Site'),
+    'mcp__chrome-devtools__click': 'Clicked.',
+    'mcp__chrome-devtools__list_pages': pagesOn('http://site.test/cms/pages/185/edit/', 'Editing Page 185 - Site'),
   })
-  expect(composed.sections).toEqual([])
+  on('tool.check', () => ({ decision: 'allow' }))
+
+  await call($, 'mcp__chrome-devtools__new_page', { url: 'http://site.test/cms/pages/185/edit/' })
+  await call($, 'mcp__chrome-devtools__click', { pageId: 1, uid: '1_16' })
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
+  const rows = await ui.findAll({ type: 'Text', text: // })
+  expect(rows.map(row => row.text.split('  ')[0])).toEqual([' Sign in', ' Editing Page 185'])
+  await ui.unmount()
+})
+
+test('without permission for list_pages, a click adds nothing and opens no dialog', async ($, on) => {
+  const listed: string[] = []
+  engine(on, () => pagesOn('http://site.test/a/', 'Page A'))
+  on('tool.check', () => ({ decision: 'ask' }))
+  on('tool.call', { tool: 'mcp__chrome-devtools__list_pages' }, (_, e) => {
+    listed.push(e.tool)
+    return { result: {}, text: '' }
+  })
+
+  await call($, 'mcp__chrome-devtools__click', { pageId: 1, uid: '1_2' })
+  expect(listed).toEqual([])
 })

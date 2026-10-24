@@ -1,51 +1,35 @@
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
-import type { Headless, Page, Visit } from '../types'
+import type { Page } from '../types'
 
-const pages = atom({ plugin: 'devtools-lens', key: 'pages' } as const, [], {
-  shape: 'pages-1',
-})
 // Last viewport set per page id, from resize_page / emulate.
 const viewports = atom({ plugin: 'devtools-lens', key: 'viewports' } as const, {}, {
   shape: 'viewports-1',
 })
-// Every page the browser had selected this session, by normalized URL.
+// Every page the browser visited this session, by normalized URL.
 const visits = atom({ plugin: 'devtools-lens', key: 'visits' } as const, {}, {
   shape: 'visits-3',
 })
-// The visited pages the model's last reply named by URL: the ones meant for
-// the person. The next prompt clears them.
-const pins = atom({ plugin: 'devtools-lens', key: 'pins' } as const, [], {
-  shape: 'pins-3',
+// The pages visited since the person's last prompt, by normalized URL, the
+// latest visit last: what the band shows. The next prompt clears it.
+const trail = atom({ plugin: 'devtools-lens', key: 'trail' } as const, [], {
+  shape: 'trail-1',
 })
-const headless = atom({ plugin: 'devtools-lens', key: 'headless' } as const, 'unknown')
-// Whether the browser was used since the person's last prompt: the current
-// page shows only then.
-const usedThisTurn = atom({ plugin: 'devtools-lens', key: 'usedThisTurn' } as const, false)
 
 // Any MCP server named chrome-devtools, however it is installed.
 const TOOL = /^mcp__.*chrome-devtools.*__(\w+)$/
-const RECHECK_MS = 5 * 60 * 1000
-const MAX_PINS = 5
+// Tools whose result carries no page list but may change the page.
+const MAY_NAVIGATE = new Set(['click', 'press_key', 'type_text', 'fill_form', 'handle_dialog'])
+const MAX_ROWS = 8
 // Nerd Font glyphs: nf-fa-chrome, nf-fa-user_secret, nf-fa-mobile,
 // nf-fa-tablet, nf-fa-desktop.
-const CHROME = ''
-const INCOGNITO = ''
-const PHONE = ''
-const TABLET = ''
-const DESKTOP = ''
+const CHROME = '\uf268'
+const INCOGNITO = '\uf21b'
+const PHONE = '\uf10b'
+const TABLET = '\uf10a'
+const DESKTOP = '\uf108'
 const TITLE_CHARS = 48
-
-const HEADLESS_SECTION = {
-  id: 'devtools-lens:headless',
-  scope: 'session',
-  text: [
-    'The chrome-devtools browser runs headless: the person cannot see it, and no tab or window opens on their screen.',
-    'Never say a page is open for them or ask them to look at it there. To show them a page, write its full URL in your reply: devtools-lens pins every visited page your reply names above their prompt, so name only the pages they should look at.',
-    'A page in an isolatedContext has its own cookies: a login done there is not theirs.',
-  ].join(' '),
-} as const
 
 // "## Pages" lines: `2: Title (http://x/) [selected] isolatedContext=name`
 // or a bare `1: about:blank [selected]`.
@@ -91,37 +75,15 @@ function normalize(url: string): string {
   return decoded.replace(/#.*$/, '').replace(/\/+$/, '')
 }
 
-// The URLs a reply names, trailing punctuation and markdown dropped.
-function urlsIn(answer: string): string[] {
-  const found = answer.match(/https?:\/\/[^\s<>`"'\])]+/g) ?? []
-  return found.map(url => url.replace(/[.,;:!?*_]+$/, ''))
-}
-
-// Reads the flags of this session's own chrome-devtools-mcp: a descendant of
-// the Claude process, the parent of the shell `process.run` starts, so a
-// server another session runs does not count. `unknown` where `ps` is
-// missing or no server is found.
-async function detectHeadless($: EngineInterface): Promise<Headless> {
-  const ps = await $.process.run(['sh', '-c', 'echo $PPID; ps -A -o pid=,ppid=,args=']).catch(() => null)
-  const [root = '', ...rows] = (ps?.stdout ?? '').split('\n')
-  const parents = new Map<string, string>()
-  const servers: { pid: string; args: string }[] = []
-  for (const row of rows) {
-    const [, pid = '', ppid = '', args = ''] = row.match(/^\s*(\d+)\s+(\d+)\s+(.*)$/) ?? []
-    parents.set(pid, ppid)
-    if (args.includes('chrome-devtools-mcp')) servers.push({ pid, args })
-  }
-  const isOurs = (pid: string) => {
-    for (let at = parents.get(pid); at !== undefined && at !== '1'; at = parents.get(at)) {
-      if (at === root.trim()) return true
-    }
-    return false
-  }
-  // A server shows as several processes (npm exec, its title, node), not all
-  // carrying the flags: judge by those that do.
-  const ours = servers.filter(server => isOurs(server.pid)).map(server => server.args)
-  if (ours.some(args => /--headless(?!=false)/.test(args))) return 'yes'
-  return ours.some(args => / --\w/.test(args)) ? 'no' : 'unknown'
+// The browser's page list after a call that may have navigated without
+// printing one: list_pages on the same server, run only where the person's
+// permissions already allow it, so no dialog opens. Null where it can't.
+async function pageListAfter($: EngineInterface, tool: string): Promise<string | null> {
+  const listPages = tool.replace(/__\w+$/, '__list_pages')
+  const { decision } = await $.tool.check({ tool: listPages, input: {} }).catch(() => ({ decision: 'deny' }))
+  if (decision !== 'allow') return null
+  const ran = await $.tool.call({ tool: listPages } as Parameters<EngineInterface['tool']['call']>[0]).catch(() => null)
+  return ran?.text ?? null
 }
 
 // A viewport as its device's glyph and width: "390×844" reads " 390".
@@ -131,7 +93,7 @@ function device(size: string): string {
   return Number.isNaN(width) ? size : `${glyph} ${width}`
 }
 
-const isBlank =(url: string) => url === 'about:blank' || url === ''
+const isBlank = (url: string) => url === 'about:blank' || url === ''
 
 // Titles end in the site's name ("Page - Site", "Page | Site"): drop it.
 const shorten = (title: string, url: string) => {
@@ -140,20 +102,9 @@ const shorten = (title: string, url: string) => {
 }
 
 export const register: Register = on => {
-  let checkedAt = -Infinity
-
   on('tool.call', async ($, e, next) => {
     const name = e.tool.match(TOOL)?.[1]
     if (name === undefined) return next(e)
-
-    await update($, usedThisTurn, () => true)
-
-    const now = await $.clock.now()
-    if (now - checkedAt > RECHECK_MS) {
-      checkedAt = now
-      const mode = await detectHeadless($)
-      await update($, headless, () => mode)
-    }
 
     const ran = await next(e)
     if (ran.deny !== undefined || ran.isError) return ran
@@ -164,63 +115,42 @@ export const register: Register = on => {
     const size = viewportOf(input)
     if (size !== null && id !== null) await update($, viewports, all => ({ ...all, [id]: size }))
 
-    const list = parsePages(ran.text ?? '')
+    const printed = parsePages(ran.text ?? '')
+    const list = printed ?? (MAY_NAVIGATE.has(name) ? parsePages((await pageListAfter($, e.tool)) ?? '') : null)
     if (list === null) return ran
-    await update($, pages, () => list)
 
-    const selected = list.find(page => page.isSelected)
-    if (selected === undefined || isBlank(selected.url)) return ran
-    const seenAt = (await read($, viewports))[selected.id]
+    // The page the call acted on: the one it names, else the selected one (a
+    // call without a page id acts on it, and new_page selects what it opens).
+    // Not the selected one when the call names another: navigating a page by
+    // its id leaves another selected. list_pages acts on none.
+    const target = id !== null
+      ? list.find(page => page.id === id)
+      : name === 'list_pages' ? undefined : list.find(page => page.isSelected)
+    if (target === undefined || isBlank(target.url)) return ran
+    if (size !== null && id === null) await update($, viewports, all => ({ ...all, [target.id]: size }))
+    const key = normalize(target.url)
+    await update($, trail, keys => [...keys.filter(known => known !== key), key])
+    const seenAt = (await read($, viewports))[target.id]
     await update($, visits, all => {
-      const key = normalize(selected.url)
       const known = all[key]?.viewports ?? []
       const sizes = seenAt === undefined || known.includes(seenAt) ? known : [...known, seenAt]
-      return { ...all, [key]: { url: selected.url, title: selected.title, viewports: sizes, context: selected.context } }
+      return { ...all, [key]: { url: target.url, title: target.title, viewports: sizes, context: target.context } }
     })
     return ran
   })
 
   on('prompt.submit', async ($, e, next) => {
-    await update($, usedThisTurn, () => false)
-    await update($, pins, () => [])
+    await update($, trail, () => [])
     return next(e)
-  })
-
-  on('turn.complete', async ($, e, next) => {
-    if (e.agentId !== undefined) return next(e)
-    const seen = await read($, visits)
-    const named = urlsIn(e.answer).map(normalize)
-    const fresh = [...new Set(named)].flatMap(key => (seen[key] ? [seen[key]] : []))
-    await update($, pins, () => fresh.slice(0, MAX_PINS))
-    return next(e)
-  })
-
-  on('prompt.compose', async ($, e, next) => {
-    const composed = await next(e)
-    const hasBrowser = e.tools.some(tool => TOOL.test(tool))
-    if (!hasBrowser || (await read($, headless)) !== 'yes') return composed
-    return { sections: [...composed.sections, HEADLESS_SECTION] }
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const list = await read($, pins)
-    const current = (await read($, usedThisTurn))
-      ? (await read($, pages)).find(page => page.isSelected && !isBlank(page.url))
-      : undefined
-    if (e.props.hasSurvey || (list.length === 0 && current === undefined)) return next(e)
+    const keys = (await read($, trail)).slice(-MAX_ROWS)
+    if (e.props.hasSurvey || keys.length === 0) return next(e)
 
     const { Box, Text } = $.ui.resolve(e)
-    const sizes = await read($, viewports)
-
-    // Pins once a reply named pages; until then the page the browser is on.
-    const rows: Visit[] = list.length > 0
-      ? list
-      : [{
-          url: current!.url,
-          title: current!.title,
-          viewports: sizes[current!.id] ? [sizes[current!.id]!] : [],
-          context: current!.context,
-        }]
+    const seen = await read($, visits)
+    const rows = keys.flatMap(key => (seen[key] ? [seen[key]] : []))
 
     return (
       <Box flexDirection="column">

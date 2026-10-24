@@ -13,7 +13,7 @@
     {
       "name": "devtools-lens",
       "source": "./plugins/devtools-lens",
-      "description": "A lens on the headless chrome-devtools MCP browser: the pages it lands on and the ones Claude points you to"
+      "description": "A lens on the headless chrome-devtools MCP browser: the pages it visited since your last prompt, above the prompt"
     }
   ]
 }

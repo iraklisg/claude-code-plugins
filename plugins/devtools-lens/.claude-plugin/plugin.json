@@ -1,7 +1,7 @@
 {
   "name": "devtools-lens",
-  "version": "0.1.0",
-  "description": "A lens on the headless chrome-devtools MCP browser: the pages it lands on and the ones Claude points you to, above the prompt",
+  "version": "0.2.0",
+  "description": "A lens on the headless chrome-devtools MCP browser: the pages it visited since your last prompt, above the prompt",
   "author": {
     "name": "Iraklis Georgas"
   },

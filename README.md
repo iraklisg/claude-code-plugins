@@ -5,7 +5,7 @@ Claude Code plugins by Iraklis Georgas, published as the `iraklisg` marketplace.
 | Plugin | What it does |
 |---|---|
 | [zen](plugins/zen) | A calm, brief transcript view: hides tool noise and keeps the answer, failures, progress and test results |
-| [devtools-lens](plugins/devtools-lens) | A lens on the headless chrome-devtools MCP browser: the pages it lands on and the ones Claude points you to |
+| [devtools-lens](plugins/devtools-lens) | A lens on the headless chrome-devtools MCP browser: the pages it visited since your last prompt, above the prompt |
 
 ## Install
 
