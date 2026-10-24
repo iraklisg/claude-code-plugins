@@ -1,0 +1,19 @@
+{
+  "name": "iraklisg",
+  "description": "Iraklis Georgas's Claude Code plugins",
+  "owner": {
+    "name": "Iraklis Georgas"
+  },
+  "plugins": [
+    {
+      "name": "zen",
+      "source": "./plugins/zen",
+      "description": "A calm, brief transcript view: hide tool noise, keep the answer, failures, progress and test results"
+    },
+    {
+      "name": "devtools-lens",
+      "source": "./plugins/devtools-lens",
+      "description": "A lens on the headless chrome-devtools MCP browser: the pages it lands on and the ones Claude points you to"
+    }
+  ]
+}

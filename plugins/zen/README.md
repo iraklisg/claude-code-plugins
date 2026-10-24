@@ -76,7 +76,7 @@ Brevity usually pays for itself, since shorter answers mean fewer output tokens,
 At the prompt of a terminal session:
 
 ```
-/plugin install zen --marketplace iraklisg/claude-code-zen
+/plugin install zen --marketplace iraklisg/claude-code-plugins
 ```
 
 Answer `y` to add the marketplace, then pick a scope (user scope loads it in every session).
@@ -84,7 +84,7 @@ Answer `y` to add the marketplace, then pick a scope (user scope loads it in eve
 From a shell:
 
 ```
-claude plugin install zen --marketplace iraklisg/claude-code-zen
+claude plugin install zen --marketplace iraklisg/claude-code-plugins
 ```
 
 Terminal only. Requires a Claude Code build with mod support (written against 2.1.303). Update with `claude plugin update zen@iraklisg`.

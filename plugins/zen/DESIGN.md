@@ -99,13 +99,13 @@ Band while working: `◇ Reading · 7 tools`.
 
 ## Distribution
 
-1. Develop in `~/Code/claude-code-zen`, loaded via `claude --plugin-dir ~/Code/claude-code-zen`.
-2. After the success criterion passes: push to public `iraklisg/claude-code-zen`, which doubles as its own marketplace (`.claude-plugin/marketplace.json`, one entry, `"source": "./"`).
+1. Develop in `~/Code/personal/claude-code-plugins/plugins/zen`, loaded via `claude --plugin-dir ~/Code/personal/claude-code-plugins/plugins/zen`.
+2. After the success criterion passes: push to public `iraklisg/claude-code-plugins`, the `iraklisg` marketplace that lists all the plugins (`.claude-plugin/marketplace.json` at its root, zen's entry `"source": "./plugins/zen"`). zen lived in its own repository, `iraklisg/claude-code-zen`, until it moved here with its history.
 3. Dotfiles (`~/.dotfiles/.claude/settings.json`) get only:
    ```json
    "enabledPlugins": { "zen@iraklisg": true },
    "extraKnownMarketplaces": {
-     "iraklisg": { "source": { "source": "github", "repo": "iraklisg/claude-code-zen" } }
+     "iraklisg": { "source": { "source": "github", "repo": "iraklisg/claude-code-plugins" } }
    }
    ```
 4. Plugin files must not be symlinks (no stow).

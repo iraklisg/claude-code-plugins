@@ -1,9 +1,12 @@
 {
   "name": "zen",
   "version": "0.3.1",
-  "description": "Focused transcript: hide tool noise, keep diffs, failures, progress and the answer",
+  "description": "Focused transcript: hide tool noise and diffs, keep the answer, failures, progress and test results",
   "author": {
     "name": "Iraklis Georgas"
   },
+  "homepage": "https://github.com/iraklisg/claude-code-plugins/tree/main/plugins/zen",
+  "repository": "https://github.com/iraklisg/claude-code-plugins",
+  "license": "MIT",
   "types": "./types/index.d.ts"
 }
