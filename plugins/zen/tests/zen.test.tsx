@@ -335,3 +335,43 @@ test('footer drops brief once brevity is off', async ($, on) => {
   expect(await row.find({ text: /brief/ })).toBeUndefined()
   expect(await row.find({ type: 'Button', text: 'zen' })).toBeDefined()
 })
+
+test('shows the summary row Claude wrote with a question; hides the others', async ($, on) => {
+  mock.store(on)
+  const steps = [
+    { tool: 'Bash', thought: 'Checking how sum is tested.' },
+    { tool: 'AskUserQuestion', thought: 'sum() applies Math.abs to each value, so negatives add up wrong.' },
+  ]
+  on('turn.step', async function* (_, e) {
+    const step = steps[e.index]!
+    yield { kind: 'thinking', index: 0, text: step.thought } as never
+
+    return {
+      turnId: e.turnId,
+      index: e.index,
+      answer: '',
+      toolUses: [{ id: `t${e.index}`, name: step.tool, input: {} }],
+      stopReason: 'tool_use',
+      usage: null,
+    } as never
+  })
+  on('ui.render', () => ({ type: 'Text', props: {}, children: ['engine row'] }) as never)
+
+  for (const index of [0, 1]) {
+    const stream = $.turn.step({ turnId: TURN, index, model: 'm', messageCount: 1 } as never)
+    for await (const _ of stream as AsyncIterable<unknown>) void _
+  }
+  const summary = async (text: string) =>
+    (
+      await $.ui.mount({
+        plugin: 'zen',
+        surface: 'terminal',
+        component: 'AssistantMessage',
+        requestId: text,
+        props: { text, isFirstOfReply: true, isSummary: true },
+      } as never)
+    ).drawn()
+
+  expect(await summary(steps[0]!.thought)).toMatchObject({ props: { display: 'none' } })
+  expect(await summary(steps[1]!.thought)).not.toMatchObject({ props: { display: 'none' } })
+})

@@ -12,6 +12,9 @@ const agents = atom({ plugin: 'zen', key: 'agents' } as const, [])
 // Text Claude wrote before a tool call this session; the final answer and the
 // context of a question never land here.
 const chatter = atom({ plugin: 'zen', key: 'chatter' } as const, [])
+// What Claude showed while thinking in a response that asked a question: the
+// engine draws it as a summary row, and it is the question's answer.
+const asked = atom({ plugin: 'zen', key: 'asked' } as const, [])
 
 // Rows that always show; every other tool's row is hidden unless it errored.
 // ExitPlanMode carries the plan to approve; AskUserQuestion shows only while waiting.
@@ -226,11 +229,22 @@ export const register: Register = on => {
   }).catch(($, e, next) => next(e))
 
   on('turn.step', async function* ($, e, next) {
-    const step = yield* next(e)
+    const stream = next(e)
+    let thought = ''
+    let chunk = await stream.next()
+    while (chunk.done !== true) {
+      if (chunk.value.kind === 'thinking') thought += chunk.value.text
+      yield chunk.value
+      chunk = await stream.next()
+    }
+    const step = chunk.value
     const text = squash(step.answer)
     const asks = step.toolUses.some(use => ASKS.has(use.name))
     if (e.agentId === undefined && step.toolUses.length > 0 && !asks && text !== '') {
       await update($, chatter, list => [...list, text].slice(-200))
+    }
+    if (e.agentId === undefined && asks && squash(thought) !== '') {
+      await update($, asked, list => [...list, squash(thought)].slice(-50))
     }
 
     return step
@@ -283,8 +297,10 @@ export const register: Register = on => {
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
     if (!(await read($, isOn))) return next(e)
     const text = squash(e.props.text)
+    // A summary row is hidden unless it is what Claude showed with a question.
+    const isAnswerToAsk = text !== '' && (await read($, asked)).some(one => one.includes(text))
     const isChatter =
-      e.props.isSummary === true ||
+      (e.props.isSummary === true && !isAnswerToAsk) ||
       (text !== '' && (await read($, chatter)).some(one => one.includes(text)))
     if (!isChatter) return next(e)
     const { Box } = $.ui.resolve(e)
