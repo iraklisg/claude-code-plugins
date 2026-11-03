@@ -4,7 +4,7 @@ import type { BuiltinToolResults, Register } from 'claude-code'
 import type { Agent, Band, Todo } from '../types'
 
 const isOn = atom({ plugin: 'zen', key: 'isOn' } as const, true)
-const isBrief = atom({ plugin: 'zen', key: 'isBrief' } as const, true)
+const isBrief = atom({ plugin: 'zen', key: 'isBrief' } as const, false)
 const IDLE: Band = { activity: 'Working', tools: 0, todo: null }
 const band = atom({ plugin: 'zen', key: 'band' } as const, IDLE)
 const facts = atom({ plugin: 'zen', key: 'facts' } as const, [])
@@ -126,7 +126,7 @@ export const register: Register = on => {
     const stored = await $.store.get('isOn')
     const brevity = await $.store.get('brevity')
     await update($, isOn, () => stored !== false)
-    await update($, isBrief, () => brevity !== false)
+    await update($, isBrief, () => brevity === true)
     await $.command.register({
       name: 'zen',
       description: 'Toggle the zen view (on, off, brevity on, brevity off, status)',
@@ -138,7 +138,7 @@ export const register: Register = on => {
   on('command.run', { command: 'zen' }, async ($, e) => {
     const args = e.args.trim().toLowerCase()
     const view = await read($, isOn)
-    const brevity = (await $.store.get('brevity')) !== false
+    const brevity = (await $.store.get('brevity')) === true
 
     if (args === 'brevity on' || args === 'brevity off') {
       await $.store.set('brevity', args === 'brevity on')
@@ -273,7 +273,7 @@ export const register: Register = on => {
 
   on('prompt.compose', async ($, e, next) => {
     const composed = await next(e)
-    if ((await $.store.get('brevity')) === false) return composed
+    if ((await $.store.get('brevity')) !== true) return composed
 
     return {
       sections: [...composed.sections, { id: 'zen:brevity', text: BREVITY, scope: 'session' }],

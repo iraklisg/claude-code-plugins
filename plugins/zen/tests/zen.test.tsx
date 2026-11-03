@@ -282,3 +282,28 @@ test('hides any tool by default; keeps its errors and the always-shown rows', as
   expect(await isHidden('AskUserQuestion', false, true)).toBe(false)
   expect(await isHidden('AskUserQuestion')).toBe(true)
 })
+
+const COMPOSE = {
+  model: 'claude-opus-5-5',
+  promptModel: 'claude-opus-5-5',
+  surfaces: ['terminal'],
+  tools: [],
+  outputStyle: { name: 'default', isKeepingCodingInstructions: true },
+  traits: [],
+} as never
+
+test('brevity is off by default', async ($, on) => {
+  mock.store(on)
+  on('prompt.compose', () => ({ sections: [] }) as never)
+
+  const { sections } = await $.prompt.compose(COMPOSE)
+  expect(sections.map(s => s.id)).not.toContain('zen:brevity')
+})
+
+test('brevity adds its rule once turned on', async ($, on) => {
+  mock.store(on, { brevity: true })
+  on('prompt.compose', () => ({ sections: [] }) as never)
+
+  const { sections } = await $.prompt.compose(COMPOSE)
+  expect(sections.map(s => s.id)).toContain('zen:brevity')
+})
