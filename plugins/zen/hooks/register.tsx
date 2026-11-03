@@ -4,7 +4,7 @@ import type { BuiltinToolResults, Register } from 'claude-code'
 import type { Agent, Band, Todo } from '../types'
 
 const isOn = atom({ plugin: 'zen', key: 'isOn' } as const, true)
-const isBrief = atom({ plugin: 'zen', key: 'isBrief' } as const, false)
+const isBrief = atom({ plugin: 'zen', key: 'isBrief' } as const, true)
 const IDLE: Band = { activity: 'Working', tools: 0, todo: null }
 const band = atom({ plugin: 'zen', key: 'band' } as const, IDLE)
 const facts = atom({ plugin: 'zen', key: 'facts' } as const, [])
@@ -126,7 +126,7 @@ export const register: Register = on => {
     const stored = await $.store.get('isOn')
     const brevity = await $.store.get('brevity')
     await update($, isOn, () => stored !== false)
-    await update($, isBrief, () => brevity === true)
+    await update($, isBrief, () => brevity !== false)
     await $.command.register({
       name: 'zen',
       description: 'Toggle the zen view (on, off, brevity on, brevity off, status)',
@@ -138,7 +138,7 @@ export const register: Register = on => {
   on('command.run', { command: 'zen' }, async ($, e) => {
     const args = e.args.trim().toLowerCase()
     const view = await read($, isOn)
-    const brevity = (await $.store.get('brevity')) === true
+    const brevity = (await $.store.get('brevity')) !== false
 
     if (args === 'brevity on' || args === 'brevity off') {
       await $.store.set('brevity', args === 'brevity on')
@@ -273,7 +273,7 @@ export const register: Register = on => {
 
   on('prompt.compose', async ($, e, next) => {
     const composed = await next(e)
-    if ((await $.store.get('brevity')) !== true) return composed
+    if ((await $.store.get('brevity')) === false) return composed
 
     return {
       sections: [...composed.sections, { id: 'zen:brevity', text: BREVITY, scope: 'session' }],
@@ -320,8 +320,9 @@ export const register: Register = on => {
     return <Box display="none" />
   })
 
-  // Clicking `zen` toggles the view, `brief` the brevity rule. Both stay drawn
-  // when off (`zen off`, `brief off`) so a click can bring them back.
+  // Clicking `zen` toggles the view; it stays drawn when off (`zen off`) so a
+  // click can bring it back. `brief` is a plain label shown while the brevity
+  // rule is on: turning it off is a rare, deliberate `/zen brevity off`.
   on('ui.render', { component: 'SessionMode' }, async ($, e, next) => {
     const view = await read($, isOn)
     const brevity = await read($, isBrief)
@@ -329,10 +330,6 @@ export const register: Register = on => {
     const toggleView = async () => {
       await $.store.set('isOn', !view)
       await update($, isOn, () => !view)
-    }
-    const toggleBrevity = async () => {
-      await $.store.set('brevity', !brevity)
-      await update($, isBrief, () => !brevity)
     }
     const hasModes = e.props.modes.length > 0
 
@@ -343,10 +340,7 @@ export const register: Register = on => {
         <Button key="zen" plain dimColor onPress={toggleView}>
           {view ? 'zen' : 'zen off'}
         </Button>
-        <Text dimColor> · </Text>
-        <Button key="brief" plain dimColor onPress={toggleBrevity}>
-          {brevity ? 'brief' : 'brief off'}
-        </Button>
+        {brevity ? <Text dimColor> · brief</Text> : null}
       </Box>
     )
   })

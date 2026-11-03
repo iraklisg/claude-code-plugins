@@ -1,4 +1,5 @@
 import { expect, mock, test } from 'claude-code/testing'
+import type { TestBody } from 'claude-code/testing'
 
 import { agentsLine, bandLine, factsLine } from '../hooks/register'
 
@@ -292,18 +293,45 @@ const COMPOSE = {
   traits: [],
 } as never
 
-test('brevity is off by default', async ($, on) => {
+test('brevity is on by default', async ($, on) => {
   mock.store(on)
+  on('prompt.compose', () => ({ sections: [] }) as never)
+
+  const { sections } = await $.prompt.compose(COMPOSE)
+  expect(sections.map(s => s.id)).toContain('zen:brevity')
+})
+
+test('brevity drops its rule once turned off', async ($, on) => {
+  mock.store(on, { brevity: false })
   on('prompt.compose', () => ({ sections: [] }) as never)
 
   const { sections } = await $.prompt.compose(COMPOSE)
   expect(sections.map(s => s.id)).not.toContain('zen:brevity')
 })
 
-test('brevity adds its rule once turned on', async ($, on) => {
-  mock.store(on, { brevity: true })
-  on('prompt.compose', () => ({ sections: [] }) as never)
+const footer = async (...[$, on, stored]: [...Parameters<TestBody>, Record<string, unknown>]) => {
+  mock.store(on, stored)
+  on('command.register', () => ({ value: undefined }) as never)
+  on('session.start', (_, e) => ({ cwd: e.cwd }) as never)
+  await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true } as never)
 
-  const { sections } = await $.prompt.compose(COMPOSE)
-  expect(sections.map(s => s.id)).toContain('zen:brevity')
+  return $.ui.mount({
+    plugin: 'zen',
+    surface: 'terminal',
+    component: 'SessionMode',
+    requestId: 'm1',
+    props: { modes: [] },
+  } as never)
+}
+
+test('footer shows brief as a plain label while brevity is on', async ($, on) => {
+  const row = await footer($, on, {})
+  expect(await row.find({ type: 'Text', text: /brief/ })).toBeDefined()
+  expect(await row.findAll({ type: 'Button' })).toHaveLength(1)
+})
+
+test('footer drops brief once brevity is off', async ($, on) => {
+  const row = await footer($, on, { brevity: false })
+  expect(await row.find({ text: /brief/ })).toBeUndefined()
+  expect(await row.find({ type: 'Button', text: 'zen' })).toBeDefined()
 })

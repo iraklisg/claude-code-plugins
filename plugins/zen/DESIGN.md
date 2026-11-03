@@ -2,7 +2,7 @@
 
 A Claude Code mod that turns the transcript into a focused, brief view. Principle: brevity. Hide noise; keep failures, progress, the test result and the answer. Diffs are reviewed outside Claude Code (VS Code, lazygit).
 
-**Hard requirement:** zen adds no model calls and nothing slows a turn. The only thing the model reads from zen is the brevity rule (~150 tokens, cached), which is off by default.
+**Hard requirement:** zen adds no model calls and nothing slows a turn. The only thing the model reads from zen is the brevity rule (~150 tokens, cached), which has its own off switch.
 
 Settled in a grill-me session on 2026-10-19 (mod API: Claude Code 2.1.303).
 
@@ -45,12 +45,12 @@ Never forces Claude to plan (no prompt injection for progress). Yields to survey
 
 ## Prose
 
-`prompt.compose` appends a `session`-scope section: no preamble, no step narration, final answer leads with the outcome (unless an explanation was asked for), chat only (code, comments, commits keep their style); answer the user's question in visible text before AskUserQuestion (thinking is hidden, options aren't an answer). Toggle: `/zen brevity on|off`; off by default (only a stored `true` turns it on). Why: an A/B test (`claude -p` with vs without `--append-system-prompt` set to the rule, 6 prompts × 3 runs) cut answers by ~14% on Opus 4.8 but changed nothing on Opus 5.5 at medium effort, which already skips preamble and leads with the outcome. It does not tell Claude to skip listing files (shell edits would go unreported) or to prefer Edit over sed (more calls, slower turns). In-between text is hidden by the view (free, independent of brevity): `turn.step` records each response's text that came with tool calls, and `AssistantMessage` blocks matching a recorded text (or `isSummary`) are hidden. The final answer is never recorded, so it always shows. Nor is text that came with AskUserQuestion or ExitPlanMode: the turn stops there to wait for the user, so no answer follows to cover it (findings before a "which to apply?" question, a draft before "commit?"); after `--resume` nothing is recorded, so old text stays visible.
+`prompt.compose` appends a `session`-scope section: no preamble, no step narration, final answer leads with the outcome (unless an explanation was asked for), chat only (code, comments, commits keep their style); answer the user's question in visible text before AskUserQuestion (thinking is hidden, options aren't an answer). Toggle: `/zen brevity on|off`; on by default (only a stored `false` turns it off). Measured: an A/B test (`claude -p --safe-mode` with vs without `--append-system-prompt` set to the rule, 6 prompts × 3 runs, Opus 5.5 medium) cut answers by 23%. `--safe-mode` matters: without it the user's CLAUDE.md joins both arms, and one that already asks for brevity hides the rule's effect. It does not tell Claude to skip listing files (shell edits would go unreported) or to prefer Edit over sed (more calls, slower turns). In-between text is hidden by the view (free, independent of brevity): `turn.step` records each response's text that came with tool calls, and `AssistantMessage` blocks matching a recorded text (or `isSummary`) are hidden. The final answer is never recorded, so it always shows. Nor is text that came with AskUserQuestion or ExitPlanMode: the turn stops there to wait for the user, so no answer follows to cover it (findings before a "which to apply?" question, a draft before "commit?"); after `--resume` nothing is recorded, so old text stays visible.
 
 ## Controls
 
 - `/zen [on|off|status|brevity on|brevity off]`: bare `/zen` toggles the view; persisted in `$.store` across sessions.
-- Indicator and switch: a dim `zen · brief` label at the right of the prompt footer (`SessionMode` site), each word a plain `Button`: click `zen` to toggle the view, `brief` to toggle brevity. Off states stay drawn (`zen off`, `brief off`) so a click brings them back. (`$.ui.status` was tried: the engine prefixes it `⚠ zen:` and it takes its own row.)
+- Indicator and switch: a dim `zen · brief` label at the right of the prompt footer (`SessionMode` site). `zen` is a plain `Button` that toggles the view; its off state stays drawn (`zen off`) so a click brings it back. `brief` is plain text shown only while brevity is on: turning it off is rare and deliberate (`/zen brevity off`), not worth a one-click switch. (`$.ui.status` was tried: the engine prefixes it `⚠ zen:` and it takes its own row.)
 - The mod never writes settings files.
 
 ## Scope
@@ -61,7 +61,7 @@ Never forces Claude to plan (no prompt injection for progress). Yields to survey
 
 ## Success criterion
 
-A tiny TS project committed at `fixture/` (its tests named `*.spec.ts` so `claude plugin test` ignores them) with a planted bug and a `getUser` function. Each scenario is run with real Claude via `scripts/run.sh <name> '<prompt>'`: a fresh fixture copy, `claude --plugin-dir` in an isolated tmux (`tmux -L zentest`, never the default socket), checked with `capture-pane`. Runs share the mod's `$.store` with your own `--plugin-dir` sessions: restore `/zen on` and `/zen brevity off` after a run that toggles them.
+A tiny TS project committed at `fixture/` (its tests named `*.spec.ts` so `claude plugin test` ignores them) with a planted bug and a `getUser` function. Each scenario is run with real Claude via `scripts/run.sh <name> '<prompt>'`: a fresh fixture copy, `claude --plugin-dir` in an isolated tmux (`tmux -L zentest`, never the default socket), checked with `capture-pane`. Runs share the mod's `$.store` with your own `--plugin-dir` sessions: restore `/zen on` and `/zen brevity on` after a run that toggles them.
 
 **A. Refactor across 3 files** ("rename getUser to fetchUser everywhere")
 ```

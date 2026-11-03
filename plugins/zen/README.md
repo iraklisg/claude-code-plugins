@@ -51,7 +51,7 @@ With zen:
 - **Anything that needs you**: permission prompts, Claude's questions and plans to approve
 - **Progress while Claude works**, in one line above the prompt: `▰▰▱ 2/3 · Updating routes` · `◇ Reading · 4 tools` · `◇ 2 agents running · …`
 - **The test result** when tests ran: `◇ tests ✓` or `◇ tests ✗`. zen reads failure markers in the output, so a piped `pnpm test | tail` that failed still shows ✗
-- **The mode**: a dim `zen · brief off` label in the prompt footer. Click `zen` or `brief` to toggle it
+- **The mode**: a dim `zen · brief` label in the prompt footer. Click `zen` to toggle the view; `brief` shows while the brevity rule is on
 
 ## Brevity: shorter answers, not just a cleaner screen
 
@@ -66,10 +66,10 @@ Everything above is display only: Claude does the same work and writes the same 
 |---|---|---|
 | Changes | what's drawn | what Claude writes |
 | Tokens | none | ~150 in the system prompt, cached after the first request |
-| Default | on | off |
-| Footer label (click to toggle) | `zen` / `zen off` | `brief` / `brief off` |
+| Default | on | on |
+| Footer label | `zen` / `zen off` (click to toggle) | `brief` while on, nothing when off |
 
-Brevity is off by default. In an A/B test (same prompts with and without the rule, 3 runs each), it cut answers by ~14% on Opus 4.8, mostly on open-ended prose. On Opus 5.5 it changed nothing: without the rule, the model already skips preamble and leads with the outcome. Turn it on if your model is wordier than you'd like. In an organization-managed Claude Code, plugins can't change the system prompt, so brevity has no effect there; the view still works.
+In an A/B test on Opus 5.5 (same prompts with and without the rule, 3 runs each, no CLAUDE.md), brevity cut answers by 23%, and every prompt got shorter. If your own CLAUDE.md already asks for short answers, brevity adds little: turn it off with `/zen brevity off`, which persists across sessions. In an organization-managed Claude Code, plugins can't change the system prompt, so brevity has no effect there; the view still works.
 
 ## Install
 
@@ -102,7 +102,7 @@ Settings persist across sessions. Nothing is lost: `/zen off` redraws the whole 
 
 ## Cost
 
-No extra model calls. Brevity, when you turn it on, adds ~150 prompt tokens: the only prompt cost.
+No extra model calls. Brevity's ~150 tokens are the only prompt cost.
 
 See [DESIGN.md](DESIGN.md) for the decisions behind it.
 
