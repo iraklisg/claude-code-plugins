@@ -394,8 +394,16 @@ export const register: Register = on => {
     const running = await read($, agents)
     if (!e.props.isWorking && running.length === 0) return next(e)
     const line = e.props.isWorking ? bandLine(await read($, band), running) : agentsLine(running)
-    const { Text } = $.ui.resolve(e)
+    // Other plugins draw in this band too (devtools-lens lists pages): keep what
+    // they drew above, and the progress line last, beside the prompt.
+    const below = await next(e)
+    const { Box, Text } = $.ui.resolve(e)
 
-    return <Text dimColor wrap="truncate">{line}</Text>
+    return (
+      <Box flexDirection="column">
+        {below}
+        <Text dimColor wrap="truncate">{line}</Text>
+      </Box>
+    )
   })
 }

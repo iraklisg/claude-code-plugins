@@ -49,7 +49,7 @@ With zen:
 - **Claude's final answer**, untouched
 - **Failures**: any tool that errored, except reads and searches; a task that failed or was killed
 - **Anything that needs you**: permission prompts, Claude's questions and plans to approve
-- **Progress while Claude works**, in one line above the prompt: `▰▰▱ 2/3 · Updating routes` · `◇ Reading · 4 tools` · `◇ 2 agents running · …`
+- **Progress while Claude works**, in one line above the prompt: `▰▰▱ 2/3 · Updating routes` · `◇ Reading · 4 tools` · `◇ 2 agents running · …`. Rows other plugins draw there (devtools-lens's pages) stay, above it
 - **The test result** when tests ran: `◇ tests ✓` or `◇ tests ✗`. zen reads failure markers in the output, so a piped `pnpm test | tail` that failed still shows ✗
 - **The mode**: a dim `zen · brief` label in the prompt footer. Click `zen` to toggle the view; `brief` shows while the brevity rule is on
 

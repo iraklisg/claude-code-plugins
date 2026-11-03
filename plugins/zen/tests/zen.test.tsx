@@ -1,5 +1,5 @@
 import { expect, mock, test } from 'claude-code/testing'
-import type { TestBody } from 'claude-code/testing'
+import type { Plugin, TestBody } from 'claude-code/testing'
 
 import { agentsLine, bandLine, factsLine } from '../hooks/register'
 
@@ -415,4 +415,32 @@ test('the footer redraws when the view switch is clicked', async ($, on) => {
   } as never)
   await footer.press({ key: 'zen' })
   expect((await footer.find({ type: 'Button' }))?.text).toBe('zen')
+})
+
+// Stands in for devtools-lens, which lists pages in the same band.
+const lens: Plugin = {
+  name: 'lens',
+  register: on => {
+    on('ui.render', { component: 'AbovePrompt' }, ($, e) => {
+      const { Text } = $.ui.resolve(e)
+
+      return <Text>{'\uf268 Home  http://site.test/'}</Text>
+    })
+  },
+}
+
+test("the progress line joins another plugin's rows in the band", { plugins: [lens] }, async ($, on) => {
+  mock.store(on)
+  on('ui.render', () => ({ type: 'Text', props: {}, children: ['engine band'] }) as never)
+  const band = await $.ui.mount({
+    plugin: 'zen',
+    surface: 'terminal',
+    component: 'AbovePrompt',
+    requestId: 'b',
+    props: { hasSurvey: false, isWorking: true, maxRows: 10 },
+  } as never)
+  const texts = (await band.findAll({ type: 'Text' })).map(one => one.text)
+
+  expect(texts).toContain('\uf268 Home  http://site.test/')
+  expect(texts.at(-1)).toBe('◇ Working · 0 tools')
 })

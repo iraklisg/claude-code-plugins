@@ -30,6 +30,7 @@ One line. Progress has priority:
 - Otherwise activity: `◇ Editing · 6 tools`
 - Subagents appended: `· 2 agents`
 - Between turns, while background agents still run: `◇ 2 agents running · Explore auth code paths, Repo conventions research` (the Agent calls' descriptions, cut to width; tracked from `agent.spawn` and each agent's `turn.complete`; gone at zero).
+- Shared: the line goes under what `next(e)` drew, never in its place. Other plugins draw in this band too, and a hook that answered without `next` dropped every plugin beneath it (devtools-lens's page list vanished while Claude worked). The engine draws nothing there of its own but surveys, which the hook already yields to.
 - The engine's `N background agents launched` row can't be hidden: no render site draws it (checked by logging every site during a launch). Each agent's own `Agent` row is hidden, and so is a `Workflow` row; workflow agents raise `agent.spawn` and `turn.complete` like any agent, so the band lists them by their labels. The `Agent/Dynamic workflow … finished` rows stay as the record.
 
 Never forces Claude to plan (no prompt injection for progress). Yields to surveys (`hasSurvey`).
