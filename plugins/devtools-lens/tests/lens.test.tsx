@@ -24,11 +24,17 @@ const PAGES = [
   '2: Login – Site (http://localhost:8000/de/login?next=/de/account/) [selected] isolatedContext=guest',
 ].join('\n')
 
-function engine(on: On, results: Record<string, string> | (() => string)) {
+// Stands in for the engine: tool results, and the band beneath the plugin
+// (empty, or another plugin's row).
+function engine(on: On, results: Record<string, string> | (() => string), below?: string) {
   on('tool.call', (_, e) => ({
     result: {},
     text: typeof results === 'function' ? results() : (results[e.tool] ?? ''),
   }))
+  on('ui.render', ($, e) => {
+    const { Box, Text } = $.ui.resolve(e)
+    return below === undefined ? <Box /> : <Text>{below}</Text>
+  })
 }
 
 const call = ($: Engine, tool: string, input: Record<string, unknown>) =>
@@ -125,12 +131,8 @@ test("the band lists the turn's pages in visit order, a revisit moving last, at 
 })
 
 test('the next prompt clears the band', async ($, on) => {
-  engine(on, () => pagesOn('http://site.test/a/', 'Page A'))
+  engine(on, () => pagesOn('http://site.test/a/', 'Page A'), 'engine')
   on('prompt.submit', (_, e) => ({ text: e.text }))
-  on('ui.render', ($, e) => {
-    const { Text } = $.ui.resolve(e)
-    return <Text>engine</Text>
-  })
   const band = async () => {
     const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
     const text = (await ui.find({ type: 'Text' }))?.text
@@ -172,4 +174,15 @@ test('without permission for list_pages, a click adds nothing and opens no dialo
 
   await call($, 'mcp__chrome-devtools__click', { pageId: 1, uid: '1_2' })
   expect(listed).toEqual([])
+})
+test("the band keeps what another plugin drew there, under the pages", async ($, on) => {
+  engine(on, { [NAV]: pagesOn('http://site.test/', 'Home - Site') }, '◇ Working · 2 tools')
+
+  await call($, NAV, { type: 'url', url: 'http://site.test/' })
+
+  const ui = await $.ui.mount({ ...BAND, surface: 'terminal', props: { ...BAND.props, isWorking: true } })
+  const texts = (await ui.findAll({ type: 'Text' })).map(one => one.text)
+  expect(texts.some(text => text.includes(' Home  http://site.test/'))).toBe(true)
+  expect(texts.at(-1)).toBe('◇ Working · 2 tools')
+  await ui.unmount()
 })

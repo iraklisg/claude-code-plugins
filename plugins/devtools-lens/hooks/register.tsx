@@ -148,6 +148,9 @@ export const register: Register = on => {
     const keys = (await read($, trail)).slice(-MAX_ROWS)
     if (e.props.hasSurvey || keys.length === 0) return next(e)
 
+    // Other plugins draw in this band too (zen's progress line): keep what they
+    // drew, under the pages.
+    const below = await next(e)
     const { Box, Text } = $.ui.resolve(e)
     const seen = await read($, visits)
     const rows = keys.flatMap(key => (seen[key] ? [seen[key]] : []))
@@ -164,6 +167,7 @@ export const register: Register = on => {
             </Text>
           </Text>
         ))}
+        {below}
       </Box>
     )
   })

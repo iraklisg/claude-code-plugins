@@ -21,7 +21,7 @@ Every page the browser visited since your last prompt, in visit order:
 | ` 390` ` 768` ` 1280` | Every viewport Claude viewed the page at this session, by width: phone below 768px, tablet below 1024px, desktop above |
 | `` | The page is in an isolated browser context: it has its own cookies, so a login Claude did there is not yours |
 
-The list grows while Claude works and stays after it answers. A page visited twice moves to the end, and the band keeps the last eight. It shows every page, the ones Claude passed through on its way (a list it searched, a login it was redirected to) included: devtools-lens never reads Claude's reply, so what you see is what the browser did. Your next prompt clears the band.
+The list grows while Claude works and stays after it answers. A page visited twice moves to the end, and the band keeps the last eight. It shows every page, the ones Claude passed through on its way (a list it searched, a login it was redirected to) included: devtools-lens never reads Claude's reply, so what you see is what the browser did. Your next prompt clears the band. Rows other plugins draw there (zen's progress line) stay, under the pages.
 
 It adds nothing to Claude's prompt and never reads its reply, so Claude works as if it weren't installed.
 
