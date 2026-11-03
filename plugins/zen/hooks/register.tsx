@@ -1,10 +1,10 @@
 import { atom, read, update } from 'claude-code'
-import type { BuiltinToolResults, Register } from 'claude-code'
+import type { BuiltinToolResults, CoreEngineInterface, Register } from 'claude-code'
 
 import type { Agent, Band, Todo } from '../types'
 
-const isOn = atom({ plugin: 'zen', key: 'isOn' } as const, true)
-const isBrief = atom({ plugin: 'zen', key: 'isBrief' } as const, true)
+// Bumped whenever a switch flips, so what reads the switches redraws.
+const switched = atom({ plugin: 'zen', key: 'switched' } as const, 0)
 const IDLE: Band = { activity: 'Working', tools: 0, todo: null }
 const band = atom({ plugin: 'zen', key: 'band' } as const, IDLE)
 const facts = atom({ plugin: 'zen', key: 'facts' } as const, [])
@@ -15,6 +15,25 @@ const chatter = atom({ plugin: 'zen', key: 'chatter' } as const, [])
 // What Claude showed while thinking in a response that asked a question: the
 // engine draws it as a summary row, and it is the question's answer.
 const asked = atom({ plugin: 'zen', key: 'asked' } as const, [])
+
+// The two switches live in $.store, which outlives the session: a /clear starts
+// a new one with fresh atoms and no session.start to fill them, so an atom
+// holding a switch would fall back to its initial value.
+type Settings = Pick<CoreEngineInterface, 'state' | 'store'>
+const viewOn = async ($: Settings) => {
+  await read($, switched)
+
+  return (await $.store.get('isOn')) !== false
+}
+const briefOn = async ($: Settings) => {
+  await read($, switched)
+
+  return (await $.store.get('brevity')) !== false
+}
+const flip = async ($: Settings, key: 'isOn' | 'brevity', value: boolean) => {
+  await $.store.set(key, value)
+  await update($, switched, n => n + 1)
+}
 
 // Rows that always show; every other tool's row is hidden unless it errored.
 // ExitPlanMode carries the plan to approve; AskUserQuestion shows only while waiting.
@@ -126,10 +145,6 @@ export const register: Register = on => {
   let turn = freshTurn()
 
   on('session.start', async ($, e, next) => {
-    const stored = await $.store.get('isOn')
-    const brevity = await $.store.get('brevity')
-    await update($, isOn, () => stored !== false)
-    await update($, isBrief, () => brevity !== false)
     await $.command.register({
       name: 'zen',
       description: 'Toggle the zen view (on, off, brevity on, brevity off, status)',
@@ -140,12 +155,11 @@ export const register: Register = on => {
 
   on('command.run', { command: 'zen' }, async ($, e) => {
     const args = e.args.trim().toLowerCase()
-    const view = await read($, isOn)
-    const brevity = (await $.store.get('brevity')) !== false
+    const view = await viewOn($)
+    const brevity = await briefOn($)
 
     if (args === 'brevity on' || args === 'brevity off') {
-      await $.store.set('brevity', args === 'brevity on')
-      await update($, isBrief, () => args === 'brevity on')
+      await flip($, 'brevity', args === 'brevity on')
 
       return { text: `brevity rule ${args.slice(8)} (from the next request)` }
     }
@@ -157,8 +171,7 @@ export const register: Register = on => {
     }
 
     const next = args === '' ? !view : args === 'on'
-    await $.store.set('isOn', next)
-    await update($, isOn, () => next)
+    await flip($, 'isOn', next)
 
     return { text: `view ${next ? 'on' : 'off'}` }
   })
@@ -270,7 +283,7 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'TurnDuration' }, async ($, e, next) => {
     const ended = await next(e)
-    if (!(await read($, isOn))) return ended
+    if (!(await viewOn($))) return ended
     const match = (await read($, facts)).find(
       one => Math.abs(one.durationMs - e.props.durationMs) < 1000,
     )
@@ -287,7 +300,7 @@ export const register: Register = on => {
 
   on('prompt.compose', async ($, e, next) => {
     const composed = await next(e)
-    if ((await $.store.get('brevity')) === false) return composed
+    if (!(await briefOn($))) return composed
 
     return {
       sections: [...composed.sections, { id: 'zen:brevity', text: BREVITY, scope: 'session' }],
@@ -295,7 +308,7 @@ export const register: Register = on => {
   }).catch(($, e, next) => next(e))
 
   on('ui.render', { component: 'AssistantMessage' }, async ($, e, next) => {
-    if (!(await read($, isOn))) return next(e)
+    if (!(await viewOn($))) return next(e)
     const text = squash(e.props.text)
     // A summary row is hidden unless it is what Claude showed with a question.
     const isAnswerToAsk = text !== '' && (await read($, asked)).some(one => one.includes(text))
@@ -310,7 +323,7 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
     const { tool, isErrored, isInterrupted, isRunning } = e.props
-    if (!(await read($, isOn)) || !isQuiet(tool, isErrored, isInterrupted, isRunning)) {
+    if (!(await viewOn($)) || !isQuiet(tool, isErrored, isInterrupted, isRunning)) {
       return next(e)
     }
     const { Box } = $.ui.resolve(e)
@@ -320,7 +333,7 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'ToolResult' }, async ($, e, next) => {
     const { tool, isErrored } = e.props
-    if (!(await read($, isOn)) || !isQuiet(tool, isErrored, false, false)) return next(e)
+    if (!(await viewOn($)) || !isQuiet(tool, isErrored, false, false)) return next(e)
     const { Box } = $.ui.resolve(e)
 
     return <Box display="none" />
@@ -330,7 +343,7 @@ export const register: Register = on => {
     const hasTrouble = e.props.calls.some(
       call => !isQuiet(call.tool, call.isErrored, call.isInterrupted, call.isRunning),
     )
-    if (e.props.isExpanded || hasTrouble || !(await read($, isOn))) return next(e)
+    if (e.props.isExpanded || hasTrouble || !(await viewOn($))) return next(e)
     const { Box } = $.ui.resolve(e)
 
     return <Box display="none" />
@@ -340,13 +353,10 @@ export const register: Register = on => {
   // click can bring it back. `brief` is a plain label shown while the brevity
   // rule is on: turning it off is a rare, deliberate `/zen brevity off`.
   on('ui.render', { component: 'SessionMode' }, async ($, e, next) => {
-    const view = await read($, isOn)
-    const brevity = await read($, isBrief)
+    const view = await viewOn($)
+    const brevity = await briefOn($)
     const { Box, Text, Button } = $.ui.resolve(e)
-    const toggleView = async () => {
-      await $.store.set('isOn', !view)
-      await update($, isOn, () => !view)
-    }
+    const toggleView = () => flip($, 'isOn', !view)
     const hasModes = e.props.modes.length > 0
 
     return (
@@ -366,7 +376,7 @@ export const register: Register = on => {
     const isTaskDone =
       origin.kind === 'task-notification' && task?.status !== 'failed' && task?.status !== 'killed'
     const isAgentMessage = from !== undefined && origin.kind === 'unclassified'
-    if (isExpanded || !(isTaskDone || isAgentMessage) || !(await read($, isOn))) return next(e)
+    if (isExpanded || !(isTaskDone || isAgentMessage) || !(await viewOn($))) return next(e)
     const { Box } = $.ui.resolve(e)
 
     return <Box display="none" />
@@ -380,7 +390,7 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    if (e.props.hasSurvey || !(await read($, isOn))) return next(e)
+    if (e.props.hasSurvey || !(await viewOn($))) return next(e)
     const running = await read($, agents)
     if (!e.props.isWorking && running.length === 0) return next(e)
     const line = e.props.isWorking ? bandLine(await read($, band), running) : agentsLine(running)

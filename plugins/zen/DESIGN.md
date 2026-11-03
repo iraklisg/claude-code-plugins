@@ -51,7 +51,7 @@ The same goes for summary rows. Opus 5.5 often writes its answer before a questi
 
 ## Controls
 
-- `/zen [on|off|status|brevity on|brevity off]`: bare `/zen` toggles the view; persisted in `$.store` across sessions.
+- `/zen [on|off|status|brevity on|brevity off]`: bare `/zen` toggles the view; persisted in `$.store` across sessions. Every read of a switch goes to `$.store`, never to a copy in `$.state`: a /clear starts a new session with fresh state and no `session.start`, so a copy fell back to its initial value (the footer showed `brief` and the view came back on after `/zen brevity off` or `/zen off`). A `switched` counter in `$.state`, bumped on every flip, is what makes the footer and the hidden rows redraw.
 - Indicator and switch: a dim `zen · brief` label at the right of the prompt footer (`SessionMode` site). `zen` is a plain `Button` that toggles the view; its off state stays drawn (`zen off`) so a click brings it back. `brief` is plain text shown only while brevity is on: turning it off is rare and deliberate (`/zen brevity off`), not worth a one-click switch. (`$.ui.status` was tried: the engine prefixes it `⚠ zen:` and it takes its own row.)
 - The mod never writes settings files.
 

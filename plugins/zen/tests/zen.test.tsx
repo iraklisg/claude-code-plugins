@@ -375,3 +375,44 @@ test('shows the summary row Claude wrote with a question; hides the others', asy
   expect(await summary(steps[0]!.thought)).toMatchObject({ props: { display: 'none' } })
   expect(await summary(steps[1]!.thought)).not.toMatchObject({ props: { display: 'none' } })
 })
+
+// A /clear starts a new session with fresh state and no session.start: what
+// was switched off must stay off, read from the store.
+test('switches stay off with no session.start, as after /clear', async ($, on) => {
+  mock.store(on, { isOn: false, brevity: false })
+  on('ui.render', () => ({ type: 'Text', props: {}, children: ['engine row'] }) as never)
+
+  const footer = await $.ui.mount({
+    plugin: 'zen',
+    surface: 'terminal',
+    component: 'SessionMode',
+    requestId: 'm1',
+    props: { modes: [] },
+  } as never)
+  expect(await footer.find({ text: /brief/ })).toBeUndefined()
+  expect((await footer.find({ type: 'Button' }))?.text).toBe('zen off')
+
+  const edit = await $.ui.mount({
+    plugin: 'zen',
+    surface: 'terminal',
+    component: 'ToolUse',
+    requestId: 'e1',
+    props: { tool_use_id: 'x', tool: 'Edit', input: {}, isRunning: false, isErrored: false, isInterrupted: false },
+  } as never)
+  expect(await edit.drawn()).not.toMatchObject({ props: { display: 'none' } })
+})
+
+test('the footer redraws when the view switch is clicked', async ($, on) => {
+  mock.store(on, { isOn: false })
+  on('ui.render', () => ({ type: 'Text', props: {}, children: ['engine row'] }) as never)
+
+  const footer = await $.ui.mount({
+    plugin: 'zen',
+    surface: 'terminal',
+    component: 'SessionMode',
+    requestId: 'm1',
+    props: { modes: [] },
+  } as never)
+  await footer.press({ key: 'zen' })
+  expect((await footer.find({ type: 'Button' }))?.text).toBe('zen')
+})
