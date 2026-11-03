@@ -1,6 +1,6 @@
 {
   "name": "zen",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Focused transcript: hide tool noise and diffs, keep the answer, failures, progress and test results",
   "author": {
     "name": "Iraklis Georgas"
