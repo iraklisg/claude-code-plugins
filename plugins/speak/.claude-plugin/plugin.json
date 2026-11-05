@@ -1,0 +1,12 @@
+{
+  "name": "speak",
+  "version": "0.1.0",
+  "description": "Pick how Claude writes chat replies: ASD-STE100 Simplified Technical English, caveman, or off",
+  "author": {
+    "name": "Iraklis Georgas"
+  },
+  "homepage": "https://github.com/iraklisg/claude-code-plugins/tree/main/plugins/speak",
+  "repository": "https://github.com/iraklisg/claude-code-plugins",
+  "license": "MIT",
+  "types": "./types/index.d.ts"
+}

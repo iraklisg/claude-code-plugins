@@ -5,7 +5,7 @@ Claude Code plugins by Iraklis Georgas, published as the `iraklisg` marketplace.
 | Plugin | Version | What it does |
 |---|---|---|
 | [zen](plugins/zen) | ![zen version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Firaklisg%2Fclaude-code-plugins%2Fmain%2Fplugins%2Fzen%2F.claude-plugin%2Fplugin.json&query=%24.version&label=) | Focused transcript: hides tool noise and diffs, keeps the answer, failures, progress and test results |
-| [ste](plugins/ste) | ![ste version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Firaklisg%2Fclaude-code-plugins%2Fmain%2Fplugins%2Fste%2F.claude-plugin%2Fplugin.json&query=%24.version&label=) | Toggle Claude's chat replies into pragmatic ASD-STE100 Simplified Technical English: short sentences, active voice, simple words |
+| [speak](plugins/speak) | ![speak version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Firaklisg%2Fclaude-code-plugins%2Fmain%2Fplugins%2Fspeak%2F.claude-plugin%2Fplugin.json&query=%24.version&label=) | Pick how Claude writes chat replies: pragmatic ASD-STE100 (clear, simple English), caveman (as short as possible), or off. Replaces `ste` |
 | [devtools-lens](plugins/devtools-lens) | ![devtools-lens version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Firaklisg%2Fclaude-code-plugins%2Fmain%2Fplugins%2Fdevtools-lens%2F.claude-plugin%2Fplugin.json&query=%24.version&label=) | A lens on the headless chrome-devtools MCP browser: the pages it visited since your last prompt, above the prompt |
 
 ## Install
@@ -23,7 +23,7 @@ From a shell:
 ```
 claude plugin marketplace add iraklisg/claude-code-plugins
 claude plugin install zen@iraklisg
-claude plugin install ste@iraklisg
+claude plugin install speak@iraklisg
 claude plugin install devtools-lens@iraklisg
 ```
 

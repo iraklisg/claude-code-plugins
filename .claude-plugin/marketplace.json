@@ -11,9 +11,9 @@
       "description": "Focused transcript: hide tool noise and diffs, keep the answer, failures, progress and test results"
     },
     {
-      "name": "ste",
-      "source": "./plugins/ste",
-      "description": "Toggle Claude's chat replies into pragmatic ASD-STE100 Simplified Technical English"
+      "name": "speak",
+      "source": "./plugins/speak",
+      "description": "Pick how Claude writes chat replies: ASD-STE100 Simplified Technical English, caveman, or off"
     },
     {
       "name": "devtools-lens",
