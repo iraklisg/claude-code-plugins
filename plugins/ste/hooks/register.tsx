@@ -16,8 +16,10 @@ const flip = async ($: Settings, value: boolean) => {
   await update($, switched, n => n + 1)
 }
 
-// Pragmatic ("80%") STE: sentence rules only, no document skeleton. The first
-// line is what a CLAUDE.md can name ("when STE mode is on").
+// Pragmatic ("80%") STE: sentence rules only, no document skeleton, plus four
+// structure guardrails (answer first, risks first, no filler) that won blind
+// tests against a 90% variant. The first line is what a CLAUDE.md can name
+// ("when STE mode is on").
 export const RULE = [
   '# ASD-STE100 mode (ste)',
   'STE mode is on. Write chat replies in pragmatic ASD-STE100 (Simplified Technical English), about 80% strict:',
@@ -28,6 +30,10 @@ export const RULE = [
   '- No phrasal verbs (set up -> install), no contractions, no Latin abbreviations (e.g., i.e., etc.), no semicolons.',
   '- Noun clusters of 3 words max.',
   '- Put warnings and conditions before the instruction they apply to.',
+  '- Start with the answer or the recommendation in the first sentence.',
+  '- Before the first step, state each precondition or risk.',
+  '- Write a condition before its instruction: "If X, do Y", not "Do Y if X".',
+  '- Each sentence must give new information. Do not repeat or summarize.',
   '- No title or headings in short answers. Use only light markdown.',
   '- Code, commands, paths and identifiers stay as they are. These rules apply to chat only, not to code, comments, commits or files.',
 ].join('\n')

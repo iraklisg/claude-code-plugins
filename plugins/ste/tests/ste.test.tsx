@@ -25,6 +25,8 @@ test('on: sends the pragmatic rule, with no document skeleton', async ($, on) =>
   const rule = (await ids($, on, { isOn: true })).find(s => s.id === 'ste:rule')
   expect(rule?.text).toMatch(/^# ASD-STE100 mode \(ste\)\nSTE mode is on\./)
   expect(rule?.text).toMatch(/No title or headings in short answers/)
+  expect(rule?.text).toMatch(/Start with the answer/)
+  expect(rule?.text).toMatch(/Before the first step, state each precondition or risk/)
   expect(rule?.text).toMatch(/chat only/)
 })
 
