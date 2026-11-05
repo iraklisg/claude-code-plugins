@@ -1,5 +1,7 @@
 # zen
 
+![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Firaklisg%2Fclaude-code-plugins%2Fmain%2Fplugins%2Fzen%2F.claude-plugin%2Fplugin.json&query=%24.version&label=version)
+
 **A focused Claude Code view for developers: see what matters, skip the noise.**
 
 When Claude works, the transcript fills up with file reads, searches, shell commands, diffs and running commentary. You review changes in your editor or lazygit anyway, so most of that is noise. zen hides it and leaves four things: **the answer**, **what went wrong**, **what's running**, and **whether the tests passed**.

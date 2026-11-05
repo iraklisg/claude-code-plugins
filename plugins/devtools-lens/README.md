@@ -1,5 +1,7 @@
 # devtools-lens
 
+![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Firaklisg%2Fclaude-code-plugins%2Fmain%2Fplugins%2Fdevtools-lens%2F.claude-plugin%2Fplugin.json&query=%24.version&label=version)
+
 **See which pages Claude's headless browser visited, one line each above the prompt.**
 
 When Claude drives the [chrome-devtools MCP](https://github.com/ChromeDevTools/chrome-devtools-mcp) browser headless, you can't see it. It navigates, follows redirects, resizes, logs in, and all you get is Claude's word for where it ended up. devtools-lens lists the pages that browser visited since your last prompt, one line each, above the prompt.

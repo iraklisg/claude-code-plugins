@@ -8,7 +8,7 @@
     {
       "name": "zen",
       "source": "./plugins/zen",
-      "description": "A calm, brief transcript view: hide tool noise, keep the answer, failures, progress and test results"
+      "description": "Focused transcript: hide tool noise and diffs, keep the answer, failures, progress and test results"
     },
     {
       "name": "ste",

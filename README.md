@@ -2,21 +2,21 @@
 
 Claude Code plugins by Iraklis Georgas, published as the `iraklisg` marketplace.
 
-| Plugin | What it does |
-|---|---|
-| [zen](plugins/zen) | A calm, brief transcript view: hides tool noise and keeps the answer, failures, progress and test results |
-| [ste](plugins/ste) | Toggle Claude's chat replies into pragmatic ASD-STE100 Simplified Technical English: short sentences, active voice, simple words |
-| [devtools-lens](plugins/devtools-lens) | A lens on the headless chrome-devtools MCP browser: the pages it visited since your last prompt, above the prompt |
+| Plugin | Version | What it does |
+|---|---|---|
+| [zen](plugins/zen) | ![zen version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Firaklisg%2Fclaude-code-plugins%2Fmain%2Fplugins%2Fzen%2F.claude-plugin%2Fplugin.json&query=%24.version&label=) | Focused transcript: hides tool noise and diffs, keeps the answer, failures, progress and test results |
+| [ste](plugins/ste) | ![ste version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Firaklisg%2Fclaude-code-plugins%2Fmain%2Fplugins%2Fste%2F.claude-plugin%2Fplugin.json&query=%24.version&label=) | Toggle Claude's chat replies into pragmatic ASD-STE100 Simplified Technical English: short sentences, active voice, simple words |
+| [devtools-lens](plugins/devtools-lens) | ![devtools-lens version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Firaklisg%2Fclaude-code-plugins%2Fmain%2Fplugins%2Fdevtools-lens%2F.claude-plugin%2Fplugin.json&query=%24.version&label=) | A lens on the headless chrome-devtools MCP browser: the pages it visited since your last prompt, above the prompt |
 
 ## Install
 
-At the prompt of a terminal session, install any plugin by name:
+At the prompt of a terminal session, install any plugin from the table by name:
 
 ```
-/plugin install zen --marketplace iraklisg/claude-code-plugins
+/plugin install <plugin> --marketplace iraklisg/claude-code-plugins
 ```
 
-Answer `y` to add the marketplace, then pick a scope (user scope loads it in every session). Once the marketplace is added, the others install with `/plugin install <plugin>@iraklisg`.
+For example, `/plugin install zen --marketplace iraklisg/claude-code-plugins`. Answer `y` to add the marketplace, then pick a scope (user scope loads it in every session). Once the marketplace is added, the others install with `/plugin install <plugin>@iraklisg`.
 
 From a shell:
 

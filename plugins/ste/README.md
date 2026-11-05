@@ -1,5 +1,7 @@
 # ste
 
+![version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Firaklisg%2Fclaude-code-plugins%2Fmain%2Fplugins%2Fste%2F.claude-plugin%2Fplugin.json&query=%24.version&label=version)
+
 Turn Claude's chat replies into pragmatic ASD-STE100, Simplified Technical English: the controlled language of aircraft maintenance manuals, applied "80% of the way". One switch, on the fly, kept across sessions.
 
 ```
@@ -55,9 +57,21 @@ They work together: zen hides tool noise, ste shapes the answers left. Both swit
 
 ## Install
 
+At the prompt of a terminal session:
+
 ```
 /plugin install ste --marketplace iraklisg/claude-code-plugins
 ```
+
+Answer `y` to add the marketplace, then pick a scope (user scope loads it in every session).
+
+From a shell:
+
+```
+claude plugin install ste --marketplace iraklisg/claude-code-plugins
+```
+
+Update with `claude plugin update ste@iraklisg`.
 
 Terminal and desktop. Requires a Claude Code build with mod support. In an organization-managed Claude Code, plugins can't change the system prompt, so ste has no effect there.
 
