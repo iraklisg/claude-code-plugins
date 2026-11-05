@@ -2,7 +2,7 @@
 
 A Claude Code mod that turns the transcript into a focused, brief view. Principle: brevity. Hide noise; keep failures, progress, the test result and the answer. Diffs are reviewed outside Claude Code (VS Code, lazygit).
 
-**Hard requirement:** zen adds no model calls and nothing slows a turn. The only thing the model reads from zen is the brevity rule (~150 tokens, cached), which has its own off switch.
+**Hard requirement:** zen adds no model calls and nothing slows a turn. The only thing the model reads from zen is the view rule (~100 tokens, cached), sent only while the view is on.
 
 Settled in a grill-me session on 2026-10-19 (mod API: Claude Code 2.1.303).
 
@@ -13,7 +13,7 @@ Settled in a grill-me session on 2026-10-19 (mod API: Claude Code 2.1.303).
 - AskUserQuestion's answered row (the dialog itself stays)
 - Errors of read-only tools (Read / Grep / Glob / WebFetch / WebSearch / ToolSearch / MCP resource reads / ListAgents): self-corrections Claude recovers from. An unknown tool's errors show.
 - Finished-task notifications (`Agent "…" finished`, `Dynamic workflow "…" completed`) and subagent messages (`Message from @…`): Claude relays them next. Failed or killed tasks stay. ctrl+o (`isExpanded`) shows them.
-- `/zen` switch replies (`view off`, `brevity on`): the footer label shows the state. `/zen status` replies stay.
+- `/zen` switch replies (`view on`, `view off`): the footer label shows the state. `/zen status` replies stay.
 - Tool groups (unless `isExpanded`)
 
 Rows are hidden by zen itself (option a), so ctrl+o cannot reveal them: the `ToolUse` site has no expanded flag and ctrl+o is an engine key. Escape hatch: `/zen off` redraws the whole transcript in the default view. (Option b, hiding only the engine's folded groups so ctrl+o works, was set aside: noisier.)
@@ -46,14 +46,14 @@ Never forces Claude to plan (no prompt injection for progress). Yields to survey
 
 ## Prose
 
-`prompt.compose` appends a `session`-scope section: no preamble, no step narration, final answer leads with the outcome (unless an explanation was asked for), chat only (code, comments, commits keep their style); answer the user's question in visible text before AskUserQuestion (thinking is hidden, options aren't an answer). Toggle: `/zen brevity on|off`; on by default (only a stored `false` turns it off). Measured: an A/B test (`claude -p --safe-mode` with vs without `--append-system-prompt` set to the rule, 6 prompts × 3 runs, Opus 5.5 medium) cut answers by 23%. `--safe-mode` matters: without it the user's CLAUDE.md joins both arms, and one that already asks for brevity hides the rule's effect. It does not tell Claude to skip listing files (shell edits would go unreported) or to prefer Edit over sed (more calls, slower turns). In-between text is hidden by the view (free, independent of brevity): `turn.step` records each response's text that came with tool calls, and `AssistantMessage` blocks matching a recorded text, or marked `isSummary`, are hidden. The final answer is never recorded, so it always shows. Nor is text that came with AskUserQuestion or ExitPlanMode: the turn stops there to wait for the user, so no answer follows to cover it (findings before a "which to apply?" question, a draft before "commit?"); after `--resume` nothing is recorded, so old text stays visible.
+`prompt.compose` appends a `session`-scope section while the view is on: no preamble, no step narration (that text is hidden); answer the user's question in visible text before AskUserQuestion (thinking is hidden, options aren't an answer). It is the view's contract, so it follows the view's switch. Until 0.4.0 it rode on a separate brevity rule that also asked for short answers (−23% in an isolated A/B, `claude -p --safe-mode`, Opus 5.5); turning brevity off also dropped the contract while the view still hid text. 0.4.0 removed brevity: a CLAUDE.md that asks for short answers halves them by itself, and the writing style moved to the `ste` plugin. It does not tell Claude to skip listing files (shell edits would go unreported) or to prefer Edit over sed (more calls, slower turns). In-between text is hidden by the view (free): `turn.step` records each response's text that came with tool calls, and `AssistantMessage` blocks matching a recorded text, or marked `isSummary`, are hidden. The final answer is never recorded, so it always shows. Nor is text that came with AskUserQuestion or ExitPlanMode: the turn stops there to wait for the user, so no answer follows to cover it (findings before a "which to apply?" question, a draft before "commit?"); after `--resume` nothing is recorded, so old text stays visible.
 
-The same goes for summary rows. Opus 5.5 often writes its answer before a question as a thinking update, which the terminal draws as an `isSummary` row; hiding every such row left the question with no answer above it (0/14 runs in the TUI, against 5/5 without zen). So `turn.step` also gathers the thinking text each response streams, and keeps it (`asked`) when the response asked a question; a summary row matching it stays. With the fix, every answer Claude wrote showed (4/4). The brevity rule's AskUserQuestion clause is a separate guard, for Claude writing no answer at all: with it, 26/26 runs wrote one; in a trial without it, 2/6 asked with nothing above the question.
+The same goes for summary rows. Opus 5.5 often writes its answer before a question as a thinking update, which the terminal draws as an `isSummary` row; hiding every such row left the question with no answer above it (0/14 runs in the TUI, against 5/5 without zen). So `turn.step` also gathers the thinking text each response streams, and keeps it (`asked`) when the response asked a question; a summary row matching it stays. With the fix, every answer Claude wrote showed (4/4). The view rule's AskUserQuestion clause is a separate guard, for Claude writing no answer at all: with it, 26/26 runs wrote one; in a trial without it, 2/6 asked with nothing above the question.
 
 ## Controls
 
-- `/zen [on|off|status|brevity on|brevity off]`: bare `/zen` toggles the view; persisted in `$.store` across sessions. Every read of a switch goes to `$.store`, never to a copy in `$.state`: a /clear starts a new session with fresh state and no `session.start`, so a copy fell back to its initial value (the footer showed `brief` and the view came back on after `/zen brevity off` or `/zen off`). A `switched` counter in `$.state`, bumped on every flip, is what makes the footer and the hidden rows redraw.
-- Indicator and switch: a dim `zen · brief` label at the right of the prompt footer (`SessionMode` site). `zen` is a plain `Button` that toggles the view; its off state stays drawn (`zen off`) so a click brings it back. `brief` is plain text shown only while brevity is on: turning it off is rare and deliberate (`/zen brevity off`), not worth a one-click switch. (`$.ui.status` was tried: the engine prefixes it `⚠ zen:` and it takes its own row.)
+- `/zen [on|off|status]`: bare `/zen` toggles the view; persisted in `$.store` across sessions. Every read of a switch goes to `$.store`, never to a copy in `$.state`: a /clear starts a new session with fresh state and no `session.start`, so a copy fell back to its initial value (the view came back on after `/zen off`). A `switched` counter in `$.state`, bumped on every flip, is what makes the footer and the hidden rows redraw.
+- Indicator and switch: a dim `zen` label at the right of the prompt footer (`SessionMode` site), a plain `Button` that toggles the view; its off state stays drawn (`zen off`) so a click brings it back. It goes after what `next(e)` drew, joined by ` · `: the engine's modes and other plugins' labels (ste's) share the footer, and a hook that drew without `next` would drop them. (`$.ui.status` was tried: the engine prefixes it `⚠ zen:` and it takes its own row.)
 - The mod never writes settings files.
 
 ## Scope
@@ -64,7 +64,7 @@ The same goes for summary rows. Opus 5.5 often writes its answer before a questi
 
 ## Success criterion
 
-A tiny TS project committed at `fixture/` (its tests named `*.spec.ts` so `claude plugin test` ignores them) with a planted bug and a `getUser` function. Each scenario is run with real Claude via `scripts/run.sh <name> '<prompt>'`: a fresh fixture copy, `claude --plugin-dir` in an isolated tmux (`tmux -L zentest`, never the default socket), checked with `capture-pane`. Runs share the mod's `$.store` with your own `--plugin-dir` sessions: restore `/zen on` and `/zen brevity on` after a run that toggles them.
+A tiny TS project committed at `fixture/` (its tests named `*.spec.ts` so `claude plugin test` ignores them) with a planted bug and a `getUser` function. Each scenario is run with real Claude via `scripts/run.sh <name> '<prompt>'`: a fresh fixture copy, `claude --plugin-dir` in an isolated tmux (`tmux -L zentest`, never the default socket), checked with `capture-pane`. Runs share the mod's `$.store` with your own `--plugin-dir` sessions: restore `/zen on` after a run that toggles it.
 
 **A. Refactor across 3 files** ("rename getUser to fetchUser everywhere")
 ```

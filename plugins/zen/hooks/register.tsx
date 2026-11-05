@@ -16,23 +16,27 @@ const chatter = atom({ plugin: 'zen', key: 'chatter' } as const, [])
 // engine draws it as a summary row, and it is the question's answer.
 const asked = atom({ plugin: 'zen', key: 'asked' } as const, [])
 
-// The two switches live in $.store, which outlives the session: a /clear starts
+// The view switch lives in $.store, which outlives the session: a /clear starts
 // a new one with fresh atoms and no session.start to fill them, so an atom
-// holding a switch would fall back to its initial value.
+// holding the switch would fall back to its initial value.
 type Settings = Pick<CoreEngineInterface, 'state' | 'store'>
 const viewOn = async ($: Settings) => {
   await read($, switched)
 
   return (await $.store.get('isOn')) !== false
 }
-const briefOn = async ($: Settings) => {
-  await read($, switched)
-
-  return (await $.store.get('brevity')) !== false
-}
-const flip = async ($: Settings, key: 'isOn' | 'brevity', value: boolean) => {
-  await $.store.set(key, value)
+const flip = async ($: Settings, value: boolean) => {
+  await $.store.set('isOn', value)
   await update($, switched, n => n + 1)
+}
+
+// Whether a drawing shows nothing: the engine's footer with no modes.
+const isBlank = (node: unknown): boolean => {
+  if (node == null || node === false || node === '') return true
+  if (Array.isArray(node)) return node.every(isBlank)
+  if (typeof node !== 'object' || !('type' in node) || node.type === 'Button') return false
+
+  return isBlank((node as { children?: unknown }).children)
 }
 
 // Rows that always show; every other tool's row is hidden unless it errored.
@@ -61,12 +65,12 @@ const TEST_RUNNER =
 // A pipe or `;` hides the runner's exit code, so its summary decides too.
 const TEST_FAILED = /\b[1-9]\d* (failed|failing)\b|(^|\s)FAIL(ED)?\b|--- FAIL/m
 
-const BREVITY = [
-  '# Brevity (zen)',
+// What the hidden rows ask of Claude: text it writes between tool calls is
+// hidden, so it must not carry anything the user needs. Sent while the view is on.
+const VIEW = [
+  '# Condensed view (zen)',
   'The user sees a condensed transcript: tool calls and diffs are hidden; failures, your final message, and text sent with a question are shown.',
   '- No preamble and no narration of steps between tool calls.',
-  '- The final message leads with the outcome in one or two sentences unless the user asked for an explanation. Add detail only when the user needs it to act.',
-  '- This applies to chat only: code, comments, commits and files you write keep their normal style.',
   '- Before AskUserQuestion, answer any question the user asked in visible text in the same response; thinking is hidden and options are not an answer.',
 ].join('\n')
 
@@ -103,7 +107,7 @@ const isQuiet = (tool: string, isErrored: boolean, isInterrupted: boolean, isRun
     !(tool === 'AskUserQuestion' && isRunning))
 
 // `/zen status` and usage replies stay; the footer label already shows a switch.
-const SWITCHES = new Set(['', 'on', 'off', 'brevity on', 'brevity off'])
+const SWITCHES = new Set(['', 'on', 'off'])
 
 const todoOf = (
   items: ReadonlyArray<{ status: string; activeForm?: string; subject?: string; content?: string }>,
@@ -147,7 +151,7 @@ export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: 'zen',
-      description: 'Toggle the zen view (on, off, brevity on, brevity off, status)',
+      description: 'Toggle the zen view (on, off, status)',
     })
 
     return next(e)
@@ -156,22 +160,12 @@ export const register: Register = on => {
   on('command.run', { command: 'zen' }, async ($, e) => {
     const args = e.args.trim().toLowerCase()
     const view = await viewOn($)
-    const brevity = await briefOn($)
 
-    if (args === 'brevity on' || args === 'brevity off') {
-      await flip($, 'brevity', args === 'brevity on')
-
-      return { text: `brevity rule ${args.slice(8)} (from the next request)` }
-    }
-    if (args === 'status') {
-      return { text: `view ${view ? 'on' : 'off'} · brevity ${brevity ? 'on' : 'off'}` }
-    }
-    if (args !== '' && args !== 'on' && args !== 'off') {
-      return { text: 'use /zen [on|off|status|brevity on|brevity off]' }
-    }
+    if (args === 'status') return { text: `view ${view ? 'on' : 'off'}` }
+    if (args !== '' && args !== 'on' && args !== 'off') return { text: 'use /zen [on|off|status]' }
 
     const next = args === '' ? !view : args === 'on'
-    await flip($, 'isOn', next)
+    await flip($, next)
 
     return { text: `view ${next ? 'on' : 'off'}` }
   })
@@ -300,10 +294,10 @@ export const register: Register = on => {
 
   on('prompt.compose', async ($, e, next) => {
     const composed = await next(e)
-    if (!(await briefOn($))) return composed
+    if (!(await viewOn($))) return composed
 
     return {
-      sections: [...composed.sections, { id: 'zen:brevity', text: BREVITY, scope: 'session' }],
+      sections: [...composed.sections, { id: 'zen:view', text: VIEW, scope: 'session' }],
     }
   }).catch(($, e, next) => next(e))
 
@@ -350,23 +344,20 @@ export const register: Register = on => {
   })
 
   // Clicking `zen` toggles the view; it stays drawn when off (`zen off`) so a
-  // click can bring it back. `brief` is a plain label shown while the brevity
-  // rule is on: turning it off is a rare, deliberate `/zen brevity off`.
+  // click can bring it back. Drawn after what `next(e)` drew: the engine's modes
+  // and other plugins' labels (ste's) share this footer.
   on('ui.render', { component: 'SessionMode' }, async ($, e, next) => {
     const view = await viewOn($)
-    const brevity = await briefOn($)
     const { Box, Text, Button } = $.ui.resolve(e)
-    const toggleView = () => flip($, 'isOn', !view)
-    const hasModes = e.props.modes.length > 0
+    const below = await next(e)
 
     return (
       <Box flexDirection="row">
-        {hasModes ? await next(e) : null}
-        {hasModes ? <Text dimColor> & </Text> : null}
-        <Button key="zen" plain dimColor onPress={toggleView}>
+        {isBlank(below) ? null : below}
+        {isBlank(below) ? null : <Text dimColor> · </Text>}
+        <Button key="zen" plain dimColor onPress={() => flip($, !view)}>
           {view ? 'zen' : 'zen off'}
         </Button>
-        {brevity ? <Text dimColor> · brief</Text> : null}
       </Box>
     )
   })

@@ -293,24 +293,27 @@ const COMPOSE = {
   traits: [],
 } as never
 
-test('brevity is on by default', async ($, on) => {
+test('the view sends its rule while on', async ($, on) => {
   mock.store(on)
   on('prompt.compose', () => ({ sections: [] }) as never)
 
   const { sections } = await $.prompt.compose(COMPOSE)
-  expect(sections.map(s => s.id)).toContain('zen:brevity')
+  const view = sections.find(s => s.id === 'zen:view')
+  expect(view?.text).toMatch(/AskUserQuestion/)
+  expect(view?.text).not.toMatch(/one or two sentences/)
 })
 
-test('brevity drops its rule once turned off', async ($, on) => {
-  mock.store(on, { brevity: false })
+test('the view drops its rule once turned off', async ($, on) => {
+  mock.store(on, { isOn: false })
   on('prompt.compose', () => ({ sections: [] }) as never)
 
   const { sections } = await $.prompt.compose(COMPOSE)
-  expect(sections.map(s => s.id)).not.toContain('zen:brevity')
+  expect(sections.map(s => s.id)).not.toContain('zen:view')
 })
 
 const footer = async (...[$, on, stored]: [...Parameters<TestBody>, Record<string, unknown>]) => {
   mock.store(on, stored)
+  on('ui.render', () => ({ type: 'Box', props: {}, children: [] }) as never)
   on('command.register', () => ({ value: undefined }) as never)
   on('session.start', (_, e) => ({ cwd: e.cwd }) as never)
   await $.session.start({ cwd: '/', surface: 'terminal', isInteractive: true } as never)
@@ -324,16 +327,46 @@ const footer = async (...[$, on, stored]: [...Parameters<TestBody>, Record<strin
   } as never)
 }
 
-test('footer shows brief as a plain label while brevity is on', async ($, on) => {
-  const row = await footer($, on, {})
-  expect(await row.find({ type: 'Text', text: /brief/ })).toBeDefined()
+test('footer shows only the zen switch, with no brief label', async ($, on) => {
+  const row = await footer($, on, { brevity: true })
+  expect(await row.find({ text: /brief/ })).toBeUndefined()
+  expect(await row.find({ text: /·/ })).toBeUndefined()
   expect(await row.findAll({ type: 'Button' })).toHaveLength(1)
+  expect(await row.find({ type: 'Button', text: 'zen' })).toBeDefined()
 })
 
-test('footer drops brief once brevity is off', async ($, on) => {
-  const row = await footer($, on, { brevity: false })
-  expect(await row.find({ text: /brief/ })).toBeUndefined()
-  expect(await row.find({ type: 'Button', text: 'zen' })).toBeDefined()
+// Stands in for ste, which adds its own switch to the same footer.
+const ste: Plugin = {
+  name: 'ste',
+  register: on => {
+    on('ui.render', { component: 'SessionMode' }, async ($, e, next) => {
+      const { Box, Button } = $.ui.resolve(e)
+
+      return (
+        <Box flexDirection="row">
+          {await next(e)}
+          <Button key="ste" plain onPress={() => undefined}>
+            {'ste'}
+          </Button>
+        </Box>
+      )
+    })
+  },
+}
+
+test("the zen switch joins another plugin's switch in the footer", { plugins: [ste] }, async ($, on) => {
+  mock.store(on)
+  on('ui.render', () => ({ type: 'Box', props: {}, children: [] }) as never)
+  const row = await $.ui.mount({
+    plugin: 'zen',
+    surface: 'terminal',
+    component: 'SessionMode',
+    requestId: 'm1',
+    props: { modes: [] },
+  } as never)
+  const buttons = (await row.findAll({ type: 'Button' })).map(one => one.text)
+
+  expect(buttons).toEqual(expect.arrayContaining(['zen', 'ste']))
 })
 
 test('shows the summary row Claude wrote with a question; hides the others', async ($, on) => {
@@ -379,7 +412,7 @@ test('shows the summary row Claude wrote with a question; hides the others', asy
 // A /clear starts a new session with fresh state and no session.start: what
 // was switched off must stay off, read from the store.
 test('switches stay off with no session.start, as after /clear', async ($, on) => {
-  mock.store(on, { isOn: false, brevity: false })
+  mock.store(on, { isOn: false })
   on('ui.render', () => ({ type: 'Text', props: {}, children: ['engine row'] }) as never)
 
   const footer = await $.ui.mount({
@@ -389,7 +422,6 @@ test('switches stay off with no session.start, as after /clear', async ($, on) =
     requestId: 'm1',
     props: { modes: [] },
   } as never)
-  expect(await footer.find({ text: /brief/ })).toBeUndefined()
   expect((await footer.find({ type: 'Button' }))?.text).toBe('zen off')
 
   const edit = await $.ui.mount({

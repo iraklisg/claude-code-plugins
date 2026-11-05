@@ -51,25 +51,16 @@ With zen:
 - **Anything that needs you**: permission prompts, Claude's questions and plans to approve
 - **Progress while Claude works**, in one line above the prompt: `▰▰▱ 2/3 · Updating routes` · `◇ Reading · 4 tools` · `◇ 2 agents running · …`. Rows other plugins draw there (devtools-lens's pages) stay, above it
 - **The test result** when tests ran: `◇ tests ✓` or `◇ tests ✗`. zen reads failure markers in the output, so a piped `pnpm test | tail` that failed still shows ✗
-- **The mode**: a dim `zen · brief` label in the prompt footer. Click `zen` to toggle the view; `brief` shows while the brevity rule is on
+- **The mode**: a dim `zen` label in the prompt footer. Click it to toggle the view. Other plugins' labels (ste's) share the footer
 
-## Brevity: shorter answers, not just a cleaner screen
+## What Claude reads
 
-Everything above is display only: Claude does the same work and writes the same words, and zen chooses what to draw. **Brevity** is the one setting that changes what Claude writes. It adds a short rule to Claude's system prompt:
+The view is display only: Claude does the same work and zen chooses what to draw. One thing reaches Claude: while the view is on, a short rule (~100 tokens, cached after the first request) tells it what the view hides:
 
-- no preamble and no narration between steps
-- the final answer leads with the outcome in one or two sentences (unless you asked for an explanation), with detail only when you need it to act
-- chat only: code, comments, commits and files keep their normal style
+- no preamble and no narration between steps, since that text is hidden
 - answer your question in visible text before asking one back (thinking is hidden, and options aren't an answer)
 
-| | View (`/zen on`/`off`) | Brevity (`/zen brevity on`/`off`) |
-|---|---|---|
-| Changes | what's drawn | what Claude writes |
-| Tokens | none | ~150 in the system prompt, cached after the first request |
-| Default | on | on |
-| Footer label | `zen` / `zen off` (click to toggle) | `brief` while on, nothing when off |
-
-In an A/B test on Opus 5.5 (same prompts with and without the rule, 3 runs each, no CLAUDE.md), brevity cut answers by 23%, and every prompt got shorter. If your own CLAUDE.md already asks for short answers, brevity adds little: turn it off with `/zen brevity off`, which persists across sessions. In an organization-managed Claude Code, plugins can't change the system prompt, so brevity has no effect there; the view still works.
+zen no longer asks for shorter answers. Its brevity rule (0.3.x) cut answers by 23% with no CLAUDE.md, but a CLAUDE.md that asks for short answers already halves them. For a writing style, see [ste](../ste).
 
 ## Install
 
@@ -95,14 +86,13 @@ Terminal only. Requires a Claude Code build with mod support (written against 2.
 |---|---|
 | `/zen` | toggle the view |
 | `/zen on` / `/zen off` | set the view |
-| `/zen brevity on` / `off` | add or drop the brevity rule |
-| `/zen status` | show both settings |
+| `/zen status` | show the setting |
 
-Settings persist across sessions. Nothing is lost: `/zen off` redraws the whole transcript in the default view. ctrl+o doesn't reveal rows zen hides.
+The setting persists across sessions. Nothing is lost: `/zen off` redraws the whole transcript in the default view. ctrl+o doesn't reveal rows zen hides.
 
 ## Cost
 
-No extra model calls. Brevity's ~150 tokens are the only prompt cost.
+No extra model calls. The view's ~100-token rule is the only prompt cost.
 
 See [DESIGN.md](DESIGN.md) for the decisions behind it.
 
