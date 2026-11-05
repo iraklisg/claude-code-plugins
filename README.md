@@ -5,6 +5,7 @@ Claude Code plugins by Iraklis Georgas, published as the `iraklisg` marketplace.
 | Plugin | What it does |
 |---|---|
 | [zen](plugins/zen) | A calm, brief transcript view: hides tool noise and keeps the answer, failures, progress and test results |
+| [ste](plugins/ste) | Toggle Claude's chat replies into pragmatic ASD-STE100 Simplified Technical English: short sentences, active voice, simple words |
 | [devtools-lens](plugins/devtools-lens) | A lens on the headless chrome-devtools MCP browser: the pages it visited since your last prompt, above the prompt |
 
 ## Install
@@ -22,6 +23,7 @@ From a shell:
 ```
 claude plugin marketplace add iraklisg/claude-code-plugins
 claude plugin install zen@iraklisg
+claude plugin install ste@iraklisg
 claude plugin install devtools-lens@iraklisg
 ```
 

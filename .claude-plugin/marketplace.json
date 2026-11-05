@@ -11,6 +11,11 @@
       "description": "A calm, brief transcript view: hide tool noise, keep the answer, failures, progress and test results"
     },
     {
+      "name": "ste",
+      "source": "./plugins/ste",
+      "description": "Toggle Claude's chat replies into pragmatic ASD-STE100 Simplified Technical English"
+    },
+    {
       "name": "devtools-lens",
       "source": "./plugins/devtools-lens",
       "description": "A lens on the headless chrome-devtools MCP browser: the pages it visited since your last prompt, above the prompt"
