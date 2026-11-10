@@ -1,6 +1,6 @@
 {
   "name": "devtools-lens",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "A lens on the headless chrome-devtools MCP browser: the pages it visited since your last prompt, above the prompt",
   "author": {
     "name": "Iraklis Georgas"

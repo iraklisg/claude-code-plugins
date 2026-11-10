@@ -52,8 +52,8 @@ test('the band shows where the browser landed, after redirects', async ($, on) =
   for (const surface of ['terminal', 'desktop'] as const) {
     const ui = await $.ui.mount({ ...BAND, surface })
     const row = await ui.find({ type: 'Text', text: /\uf268/ })
-    expect(row?.text).toContain('\uf268 Login  http://localhost:8000/de/login')
-    expect(row?.text).toContain('\uf10b 390')
+    expect(row?.text).toContain('\uf268  Login  http://localhost:8000/de/login')
+    expect(row?.text).toContain('\uf10b  390')
     expect(row?.text).toContain('\uf21b')
     expect(row?.text).not.toContain('about:blank')
     await ui.unmount()
@@ -83,7 +83,7 @@ test('the band follows the page a call acts on, not the selected one', async ($,
   await call($, 'mcp__chrome-devtools__list_pages', {})
 
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
-  expect((await ui.find({ type: 'Text', text: // }))?.text).toContain(' Article  http://site.test/article/')
+  expect((await ui.find({ type: 'Text', text: // }))?.text).toContain('  Article  http://site.test/article/')
   expect(await ui.find({ type: 'Text', text: /534/ })).toBeUndefined()
   await ui.unmount()
 })
@@ -102,7 +102,7 @@ test('a call without a page id follows the selected page', async ($, on) => {
 
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
   const rows = await ui.findAll({ type: 'Text', text: /\uf268/ })
-  expect(rows.map(row => row.text)).toEqual(['\uf268 Home  http://site.test/  \uf10b 390'])
+  expect(rows.map(row => row.text)).toEqual(['\uf268  Home  http://site.test/  \uf10b  390'])
   await ui.unmount()
 })
 
@@ -123,10 +123,10 @@ test("the band lists the turn's pages in visit order, a revisit moving last, at 
 
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
   const rows = await ui.findAll({ type: 'Text', text: // })
-  expect(rows.map(row => row.text.split('  ')[0])).toEqual([
-    ' Editing Article', ' Article', ' P1', ' P2', ' P3', ' P4', ' P5', ' P6',
+  expect(rows.map(row => row.text.replace(/  http.*$/, ''))).toEqual([
+    '  Editing Article', '  Article', '  P1', '  P2', '  P3', '  P4', '  P5', '  P6',
   ])
-  expect(rows[1]?.text).toContain(' Article  http://site.test/magazin/list/article-2/   390   1280')
+  expect(rows[1]?.text).toContain('  Article  http://site.test/magazin/list/article-2/    390    1280')
   await ui.unmount()
 })
 
@@ -141,7 +141,7 @@ test('the next prompt clears the band', async ($, on) => {
   }
 
   await call($, NAV, { pageId: 1, type: 'url', url: 'http://site.test/a/' })
-  expect(await band()).toContain(' Page A  http://site.test/a/')
+  expect(await band()).toContain('  Page A  http://site.test/a/')
   await $.prompt.submit({ text: 'next', wait: false, origin: { kind: 'composer' } } as Parameters<Engine['prompt']['submit']>[0])
   expect(await band()).toBe('engine')
 })
@@ -159,7 +159,7 @@ test('a click that navigates shows the page it lands on', async ($, on) => {
 
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal' })
   const rows = await ui.findAll({ type: 'Text', text: // })
-  expect(rows.map(row => row.text.split('  ')[0])).toEqual([' Sign in', ' Editing Page 185'])
+  expect(rows.map(row => row.text.replace(/  http.*$/, ''))).toEqual(['  Sign in', '  Editing Page 185'])
   await ui.unmount()
 })
 
@@ -182,7 +182,7 @@ test("the band keeps what another plugin drew there, under the pages", async ($,
 
   const ui = await $.ui.mount({ ...BAND, surface: 'terminal', props: { ...BAND.props, isWorking: true } })
   const texts = (await ui.findAll({ type: 'Text' })).map(one => one.text)
-  expect(texts.some(text => text.includes(' Home  http://site.test/'))).toBe(true)
+  expect(texts.some(text => text.includes('  Home  http://site.test/'))).toBe(true)
   expect(texts.at(-1)).toBe('◇ Working · 2 tools')
   await ui.unmount()
 })

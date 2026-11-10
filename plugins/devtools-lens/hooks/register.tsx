@@ -90,7 +90,7 @@ async function pageListAfter($: EngineInterface, tool: string): Promise<string |
 function device(size: string): string {
   const width = Number.parseInt(size, 10)
   const glyph = width < 768 ? PHONE : width < 1024 ? TABLET : DESKTOP
-  return Number.isNaN(width) ? size : `${glyph} ${width}`
+  return Number.isNaN(width) ? size : `${glyph}  ${width}`
 }
 
 const isBlank = (url: string) => url === 'about:blank' || url === ''
@@ -159,7 +159,7 @@ export const register: Register = on => {
       <Box flexDirection="column">
         {rows.map(visit => (
           <Text>
-            {CHROME} {visit.title ? <Text weight="bold">{`${shorten(visit.title, visit.url)}  `}</Text> : ''}
+            {`${CHROME}  `}{visit.title ? <Text weight="bold">{`${shorten(visit.title, visit.url)}  `}</Text> : ''}
             <Text color="suggestion">{visit.url}</Text>
             <Text dimColor>
               {visit.viewports.map(size => `  ${device(size)}`).join('')}
