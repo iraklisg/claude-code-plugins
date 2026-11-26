@@ -49,6 +49,12 @@ export const STE = [
   '- Write a condition before its instruction: "If X, do Y", not "Do Y if X".',
   '- Each sentence must give new information. Do not repeat or summarize.',
   '- No title or headings in short answers. Use only light markdown.',
+  '- Longer answer example. Q: "Why is the queue slow?" A:',
+  '  "The queue has two problems.',
+  '  - Only one worker runs. The jobs run one at a time. Increase `numprocs` to 4.',
+  '  - `handle()` runs one query for each job. Load the `user` relation before the loop.',
+  '  After the two changes, measure the queue again."',
+  '- Before you send: delete each sentence that repeats or summarizes, split each sentence that has two ideas, and replace each phrasal verb.',
   '- Code, commands, paths and identifiers stay as they are. These rules apply to chat only, not to code, comments, commits or files.',
 ].join('\n')
 
@@ -67,10 +73,33 @@ export const CAVEMAN = [
   '- Examples:',
   '  - "Why does the React component re-render?" -> "Inline obj prop -> new ref -> re-render. `useMemo`."',
   '  - Not "Sure! I\'d be happy to help. The issue is likely caused by..." but "Bug in auth middleware. Token expiry check use `<` not `<=`. Fix:"',
+  '  - Longer answer. Q: "Why is the queue slow?" Not "The queue is slow because the workers process the jobs one at a time, and there is also a query that runs for every job." but:',
+  '    "Two causes:',
+  '    - 1 worker -> jobs serial. Raise `numprocs` to 4.',
+  '    - N+1 query in `handle()` -> 1 DB hit per job. Eager-load `user`."',
+  '- Before you send: delete each a/an/the, merge sentences that carry one fact, delete bullets that do not change the answer.',
   '- Code, commands, paths and identifiers stay as they are. These rules apply to chat only, not to code, comments, commits or files.',
 ].join('\n')
 
 const RULES: Record<Exclude<Mode, 'off'>, string> = { ste: STE, caveman: CAVEMAN }
+
+// Restated beside every prompt. Hypothesis, not yet measured: the system prompt
+// rule weakens under the sections a host adds after it and over a long session.
+export const REMINDERS: Record<Exclude<Mode, 'off'>, string> = {
+  ste: [
+    'speak ste is on: write this reply in pragmatic ASD-STE100.',
+    'Answer first. One idea per sentence, 20 words max for instructions, 25 for descriptions. Keep articles.',
+    'No phrasal verbs, contractions or semicolons.',
+    'Put warnings, conditions and risks before the instruction or first step they apply to.',
+    'Before you send, delete each sentence that repeats or summarizes.',
+  ].join(' '),
+  caveman: [
+    'speak caveman is on: write this reply like a smart caveman.',
+    'No articles, filler or pleasantries. Fragments, abbreviations, arrows (X -> Y).',
+    'Before you send, delete each a/an/the and each sentence that repeats.',
+    'Exceptions: full sentences for security warnings, irreversible actions, misreadable multi-step sequences and clarifications. Negations, numbers and warnings stay complete.',
+  ].join(' '),
+}
 
 // Whether a drawing shows nothing: the engine's footer with no modes.
 const isBlank = (node: unknown): boolean => {
@@ -113,6 +142,13 @@ export const register: Register = on => {
         { id: `speak:${mode}`, text: RULES[mode], scope: 'session' },
       ],
     }
+  }).catch(($, e, next) => next(e))
+
+  on('prompt.submit', async ($, e, next) => {
+    const mode = await modeOf($)
+    if (mode === 'off') return next(e)
+
+    return next({ ...e, context: [...(e.context ?? []), REMINDERS[mode]] })
   }).catch(($, e, next) => next(e))
 
   // Always drawn, so a click can leave off. Goes after what `next(e)` drew:

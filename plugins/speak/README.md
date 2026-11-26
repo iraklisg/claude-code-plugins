@@ -30,6 +30,10 @@ In `ste` and `caveman`, three scope lines are sent first. They decide how much t
 - a high-level summary unless the user asks for an in-depth explanation
 - short disclaimers and caveats, most of the reply on the main answer
 
+Each mode also sends a short reminder (about 70–90 tokens) beside every prompt, and each mode rule ends with a longer multi-point example and a check to run before the reply is sent. Hypothesis, not yet measured: in the desktop app many sections follow the rule in the system prompt, and the rule weakens over a long session; a reminder next to the user's words keeps it in force. The reminders stay in the history, so a 50-turn session carries about 4k more input tokens, mostly cached.
+
+There is no word count target. In a test, a soft target ("about 60 words for a direct question, 150 for an explanation") cut about 40% of the words, but a blind judge found answers less complete in all 8 prompts (`ste` 4.1 -> 3.0, `caveman` 4.9 -> 3.9 out of 5), worst on safety questions such as dropping a column in production.
+
 They keep STE, which is longer than plain English, from growing further.
 
 **`ste`** (about 280 tokens):
@@ -64,7 +68,7 @@ Or click `speak …` in the prompt footer: each click moves to the next mode (of
 
 ## What to expect
 
-Measured on Opus 5.5 (`claude -p --safe-mode`, medium effort, 8 chat prompts × 3 runs, with a CLAUDE.md that has no style rules). A blind Opus judge scored each answer:
+Measured with 0.1.0 on Opus 5.5 (`claude -p --safe-mode`, medium effort, 8 chat prompts × 3 runs, with a CLAUDE.md that has no style rules). A blind Opus judge scored each answer:
 
 | Mode | Words | Articles / 100 words | Clarity (1–5) | Brevity (1–5) | Filler sentences |
 |---|---|---|---|---|---|
@@ -72,6 +76,7 @@ Measured on Opus 5.5 (`claude -p --safe-mode`, medium effort, 8 chat prompts × 
 | `ste` | 264 | 11.4 | 4.8 | 4.0 | 0.6 |
 | `caveman` | 230 | 0.9 | 4.0 | 4.1 | 0.9 |
 
+- 0.2.0 (reminder, longer example, check before sending) measured the same as 0.1.0 within noise, on single questions with and without about 7.5k tokens of extra system prompt after the rule (8 prompts × 2 runs per setup). The reminder targets long sessions, which this test does not cover.
 - Both modes cut about half the words of `off`.
 - `ste` is the clearest. It is as long as the `ste` 0.2.0 plugin with a terse CLAUDE.md (268 words).
 - `caveman` is only 13% shorter than `ste`: it drops articles and joins words, but says the same things. It reads a little less clearly than `ste`.
@@ -113,4 +118,4 @@ Terminal and desktop. Requires a Claude Code build with mod support. In an organ
 
 ## Cost
 
-No extra model calls. About 300–400 tokens of system prompt in `ste` or `caveman`; nothing in `off`. Each change costs one prompt-cache miss.
+No extra model calls. About 450 tokens of system prompt and about 70–90 tokens per prompt in `ste` or `caveman`; nothing in `off`. Each change costs one prompt-cache miss.

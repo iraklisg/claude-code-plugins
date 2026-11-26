@@ -57,6 +57,113 @@ test('the base asks for scope, not sentence form', async ($, on) => {
   expect(base).toMatch(/disclaimers and caveats short/)
 })
 
+for (const mode of ['ste', 'caveman']) {
+  test(`${mode}: sets a longer example and a check before sending`, async ($, on) => {
+    const sent = await sections($, on, { mode })
+    const rule = sent.find(s => s.id === `speak:${mode}`)?.text
+    expect(rule).toMatch(/Longer answer/)
+    expect(rule).toMatch(/Before you send/)
+  })
+}
+
+const submitted = async (...[$, on, stored]: [...Parameters<TestBody>, Record<string, unknown>]) => {
+  mock.store(on, stored)
+  let context: readonly string[] | undefined
+  on('prompt.submit', (_$, e) => {
+    context = e.context
+
+    return { text: e.text, context: e.context }
+  })
+  await $.prompt.submit({ text: 'why is the queue slow?', wait: false } as never)
+
+  return context ?? []
+}
+
+test('off: no reminder goes with the prompt', async ($, on) => {
+  expect(await submitted($, on, {})).toEqual([])
+})
+
+test('ste: the reminder goes with every prompt', async ($, on) => {
+  const context = await submitted($, on, { mode: 'ste' })
+  expect(context).toHaveLength(1)
+  expect(context[0]).toMatch(/^speak ste is on/)
+  expect(context[0]).toMatch(/Keep articles/)
+  expect(context[0]).toMatch(/warnings, conditions and risks before/)
+})
+
+test('caveman: the reminder goes with every prompt', async ($, on) => {
+  const context = await submitted($, on, { mode: 'caveman' })
+  expect(context).toHaveLength(1)
+  expect(context[0]).toMatch(/^speak caveman is on/)
+  expect(context[0]).toMatch(/delete each a\/an\/the/)
+  expect(context[0]).toMatch(/full sentences for security warnings, irreversible actions/)
+})
+
+test('the reminder keeps the context other hooks attached, and goes last', async ($, on) => {
+  mock.store(on, { mode: 'caveman' })
+  let context: readonly string[] | undefined
+  on('prompt.submit', (_$, e) => {
+    context = e.context
+
+    return { text: e.text, context: e.context }
+  })
+  await $.prompt.submit({ text: 'hi', wait: false, context: ['from another hook'] } as never)
+
+  expect(context).toHaveLength(2)
+  expect(context?.[0]).toBe('from another hook')
+  expect(context?.[1]).toMatch(/^speak caveman is on/)
+})
+
+test('the prompt text is never changed', async ($, on) => {
+  mock.store(on, { mode: 'ste' })
+  let text: string | undefined
+  on('prompt.submit', (_$, e) => {
+    text = e.text
+
+    return { text: e.text, context: e.context }
+  })
+  await $.prompt.submit({ text: 'why is the queue slow?', wait: false } as never)
+
+  expect(text).toBe('why is the queue slow?')
+})
+
+for (const mode of ['ste', 'caveman']) {
+  test(`${mode}: no word count target in the rules`, async ($, on) => {
+    const rules = (await sections($, on, { mode })).map(s => s.text).join('\n')
+    expect(rules).not.toMatch(/\b(60|150) (words|for)\b|Length target|Aim for about/)
+  })
+
+  test(`${mode}: no word count target in the reminder`, async ($, on) => {
+    const [reminder] = await submitted($, on, { mode })
+    expect(reminder).not.toMatch(/\b(60|150) (words|for)\b|Length target|Aim for about/)
+  })
+}
+
+test('the base no longer carries the truthfulness rule', async ($, on) => {
+  expect((await sections($, on, { mode: 'caveman' })).find(s => s.id === 'speak:base')?.text).not.toMatch(/guesses/)
+})
+
+test('/speak switches the reminder from the next prompt', async ($, on) => {
+  mock.store(on, { mode: 'ste' })
+  const seen: string[] = []
+  on('prompt.submit', (_$, e) => {
+    seen.push(e.context?.at(-1) ?? 'none')
+
+    return { text: e.text, context: e.context }
+  })
+  const submit = () => $.prompt.submit({ text: 'q', wait: false } as never)
+
+  await submit()
+  await $.command.run({ command: 'speak', args: 'caveman' } as never)
+  await submit()
+  await $.command.run({ command: 'speak', args: 'off' } as never)
+  await submit()
+
+  expect(seen[0]).toMatch(/^speak ste is on/)
+  expect(seen[1]).toMatch(/^speak caveman is on/)
+  expect(seen[2]).toBe('none')
+})
+
 const run = async ($: Parameters<TestBody>[0], args: string) =>
   $.command.run({ command: 'speak', args } as never) as Promise<{ text: string }>
 
